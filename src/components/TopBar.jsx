@@ -5,25 +5,24 @@ export default function TopBar({ spoons, fatiguePct }) {
 
   return (
     <header className="topBar">
-      <div className="topLeft">
+      <div className="topStatus">
         <div className="spoonsBlock">
-          <div className="spoonsCount">{spoons}</div>
-          <div className="spoonsIcons" aria-hidden="true">
+            <div className="spoonsCount">{spoons}</div>
+            <div className="spoonsIcons" aria-hidden="true">
             <span className="spoon">🥄</span>
             <span className="spoon">🥄</span>
             <span className="spoon">🥄</span>
             <span className="spoon">🥄</span>
             <span className="spoon">🥄</span>
             <span className="spoon">🥄</span>
-          </div>
+            </div>
+        </div>
+
+        <div className="fatigueOuter">
+            <div className="fatigueInner" style={{ width: `${Math.round(pct * 100)}%` }} />
         </div>
       </div>
 
-      <div className="topCenter">
-        <div className="fatigueOuter">
-          <div className="fatigueInner" style={{ width: `${Math.round(pct * 100)}%` }} />
-        </div>
-      </div>
 
       <div className="topRight">
         <button className="infoButton" type="button" title="Info">i</button>
