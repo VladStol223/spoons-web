@@ -9,14 +9,17 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
-body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #222; }
+html, body { height: 100%; width: 100%; overflow: hidden; }
+body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #222; overscroll-behavior: none; -webkit-overflow-scrolling: auto; touch-action: manipulation; }
+#root { height: 100%; overflow: hidden; }
 
 .appShell {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   background: var(--frame-dark);
   padding: 16px;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -210,7 +213,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 /* --- Mobile PORTRAIT only --- */
 @media (max-width: 820px) and (orientation: portrait) {
   .appShell { padding: 0; flex-direction: column; }
-  .sidebar { width: 100%; border-radius: 0; border-left: 0; border-right: 0; border-top: 0; order: 2; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .sidebar { width: 100%; border-radius: 0; border-left: 0; border-right: 0; border-top: 6px solid var(--frame); border-bottom: 0; order: 2; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); }
   .sidebarInner { width: 100%; }
   .hubNav { flex-direction: row; justify-content: space-around; gap: 0; width: 100%; }
   .hubItem { width: 64px; height: 58px; border-radius: 14px; }
@@ -231,6 +234,20 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .restRow { grid-template-columns: 1fr; gap: 14px; }
   .restCard { height: 160px; max-width: 520px; }
   .calHideMobile { display: none !important; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .appShell { padding: 10px; }
+
+  /* move sidebar to the RIGHT */
+  .sidebar { order: 2; width: 96px; padding: 10px 8px; border-radius: 12px; }
+  .mainColumn { order: 1; margin-left: 0; margin-right: 12px; }
+
+  /* tighter vertical spacing + smaller buttons so all fit */
+  .hubNav { gap: 12px; }
+  .hubItem { width: 56px; height: 56px; border-radius: 14px; }
+  .hubIcon { font-size: 24px; }
+  .hubSub { font-size: 10px; padding: 2px 5px; }
 }
 
 .topRight { display: flex; justify-content: flex-end; }
