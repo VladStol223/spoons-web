@@ -233,3 +233,142 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 }
 
 .topRight { display: flex; justify-content: flex-end; }
+
+.calendarWrap { max-width: 1100px; }
+.calTopRow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.calViewGroup { display: flex; gap: 10px; flex-wrap: wrap; }
+.calSecondRow { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; position: relative; }
+.calArrowGroup { display: flex; gap: 8px; }
+.calBtn { padding: 10px 14px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.12); color: var(--text); cursor: pointer; font-weight: 800; }
+.calBtn:hover { background: rgba(0,0,0,0.18); }
+.calBtnActive { border-color: rgba(215,180,90,0.8); box-shadow: inset 0 0 0 1px rgba(215,180,90,0.25); }
+.calBtnPrimary { background: rgba(215,180,90,0.18); border-color: rgba(215,180,90,0.9); color: #fff3d0; }
+.calArrow { width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.calMonthPickerWrap { margin-left: auto; position: relative; }
+.calMonthBtn { min-width: 220px; text-align: center; }
+.calBody { width: 100%; }
+.calMonthView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 12px; display: flex; flex-direction: column; height: 520px; }
+
+.calDowRow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; flex: 0 0 auto; }
+
+.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(var(--calMonthRows, 6), 1fr); gap: 8px; flex: 1; min-height: 0; align-content: stretch; }
+
+.calCell { width: 100%; height: 100%; min-height: 0; border-radius: 12px; border: 2px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.10); color: var(--text); cursor: pointer; display: flex; align-items: flex-start; justify-content: flex-start; padding: 10px; }
+
+.calCell:hover { background: rgba(0,0,0,0.16); }
+.calCellMuted { opacity: 0.45; }
+.calCellNum { font-weight: 900; }
+.calCellToday { outline: 2px solid rgba(215,180,90,0.55); outline-offset: 1px; }
+.calCellSelected { outline: 2px solid rgba(255,255,255,0.75); outline-offset: 1px; }
+.calAltView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 18px; }
+.calAltTitle { margin: 0 0 8px 0; }
+.calAltRange { font-weight: 900; opacity: 0.95; margin-bottom: 10px; }
+.calAltPlaceholder { opacity: 0.85; }
+
+.calMonthPopover { position: absolute; top: 46px; right: 0; width: 240px; background: rgba(20,26,12,0.98); border: 3px solid var(--frame); border-radius: 14px; box-shadow: 0 14px 30px rgba(0,0,0,0.45); padding: 12px; z-index: 20; }
+.calMonthPopoverHeader { font-weight: 1000; text-align: center; margin-bottom: 10px; color: #f5e8c5; }
+.calMonthGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.calMonthCell { padding: 10px 0; border-radius: 10px; border: 2px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.10); color: var(--text); cursor: pointer; font-weight: 900; }
+.calMonthCell:hover { background: rgba(0,0,0,0.18); }
+.calMonthCellActive { border-color: rgba(215,180,90,0.9); background: rgba(215,180,90,0.16); }
+
+/* =========================
+   CALENDAR TIME GRID (Outlook-ish)
+========================= */
+
+.calTimeView { padding: 0; }
+
+.calTimeHeader {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  background: rgba(0,0,0,0.08);
+  border-bottom: 2px solid rgba(0,0,0,0.18);
+}
+
+.calTimeHeaderGutter { height: 56px; border-right: 2px solid rgba(0,0,0,0.18); }
+
+.calTimeHeaderCols { display: grid; }
+
+.calTimeHeaderCell {
+  height: 56px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border-right: 2px solid rgba(255,255,255,0.06);
+}
+
+.calTimeHeaderCell:last-child { border-right: 0; }
+
+.calTimeHeaderDow { font-weight: 900; opacity: 0.95; line-height: 1; }
+.calTimeHeaderDom { font-weight: 800; font-size: 13px; opacity: 0.95; margin-top: 4px; }
+
+/* fixed hour height: user must scroll to see all 24 hours */
+:root { --calHourH: 64px; } /* tweak this if you want taller/shorter hours */
+
+.calTimeScroll { display: grid; grid-template-columns: 86px 1fr; height: 520px; overflow: auto; }
+.calTimeGridArea { overflow: hidden; background: rgba(0,0,0,0.02); }
+
+.calTimeGutter {
+  border-right: 2px solid rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.06);
+}
+
+.calTimeTick {
+  height: var(--calHourH);
+  position: relative;
+}
+
+.calTimeTickLabel {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-weight: 900;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+
+
+/* a single surface that holds all horizontal + vertical lines */
+.calTimeGridSurface {
+  position: relative;
+  display: grid;
+  grid-auto-rows: var(--calHourH);
+  min-width: 780px; /* keeps week readable */
+}
+
+/* each row spans full width */
+.calTimeRow { position: relative; grid-column: 1 / -1; }
+
+.calTimeHourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.10);
+}
+
+.calTimeHalfLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--calHourH) / 2);
+  height: 1px;
+  border-top: 1px dotted rgba(255,255,255,0.16);
+}
+
+/* vertical separators between days (not in Day view) */
+.calTimeVLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255,255,255,0.06);
+  transform: translateX(-1px);
+  pointer-events: none;
+}

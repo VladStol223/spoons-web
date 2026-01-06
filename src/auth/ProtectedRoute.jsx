@@ -3,9 +3,9 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 
 export default function ProtectedRoute() {
-  const { booted, isAuthed } = useAuth();
+  const { booted, isAuthed, isDevBypass } = useAuth();
   const location = useLocation();
   if (!booted) return null;
-  if (!isAuthed) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!isAuthed && !isDevBypass) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <Outlet />;
 }

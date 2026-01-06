@@ -4,12 +4,18 @@ import { fetchAndDecryptDataJson } from "../copypartyData";
 
 const AuthContext = createContext(null);
 
+const DEV_BYPASS = import.meta.env.VITE_DEV_AUTH_BYPASS === "true";
+const DEV_USERNAME = (import.meta.env.VITE_DEV_USERNAME || "dev").trim();
+
 function loadSavedAuth() { try { const raw = localStorage.getItem("spoonsAuth"); if (!raw) return null; const obj = JSON.parse(raw); if (!obj || !obj.username || !obj.password) return null; return obj; } catch { return null; } }
 function saveAuth(obj) { localStorage.setItem("spoonsAuth", JSON.stringify(obj)); }
 function clearAuth() { localStorage.removeItem("spoonsAuth"); }
 
 export function AuthProvider({ children }) {
-  const [auth, setAuth] = useState(() => loadSavedAuth());
+  const [auth, setAuth] = useState(() => {
+    if (DEV_BYPASS) return { username: DEV_USERNAME || "dev", password: "__dev__", ts: Date.now(), dev: true };
+    return loadSavedAuth();
+  });
   const [booted, setBooted] = useState(false);
 
   const [spoons, setSpoons] = useState(0);
@@ -22,11 +28,24 @@ export function AuthProvider({ children }) {
   const password = auth?.password || null;
   const isAuthed = !!(username && password);
 
-  const authHeader = useMemo(() => { if (!isAuthed) return null; const token = btoa(`${username}:${password}`); return `Basic ${token}`; }, [isAuthed, username, password]);
+  const authHeader = useMemo(() => {
+    if (!isAuthed) return null;
+    if (DEV_BYPASS) return null;
+    const token = btoa(`${username}:${password}`);
+    return `Basic ${token}`;
+  }, [isAuthed, username, password]);
 
   async function loadUserData(u, p) {
     setDataError(null);
     setDataLoaded(false);
+
+    if (DEV_BYPASS) {
+      const nextSpoons = 12;
+      setSpoons(nextSpoons);
+      setDataLoaded(true);
+      return { ok: true, data: { spoons: nextSpoons }, spoons: nextSpoons, dev: true };
+    }
+
     try {
       const base = import.meta.env.VITE_COPYPARTY_BASE || "/cp";
       const data = await fetchAndDecryptDataJson(base, u, p);
@@ -43,20 +62,33 @@ export function AuthProvider({ children }) {
   }
 
   async function login(nextUsername, nextPassword) {
+    if (DEV_BYPASS) {
+      const obj = { username: DEV_USERNAME || "dev", password: "__dev__", ts: Date.now(), dev: true };
+      setAuth(obj);
+      const loaded = await loadUserData(obj.username, obj.password);
+      if (!loaded.ok) return loaded;
+      return { ok: true };
+    }
+
     const u = (nextUsername || "").trim();
     const p = (nextPassword || "").trim();
     if (!u || !p) return { ok: false, error: "Enter username and password." };
+
     const verify = await copypartyVerifyLogin(u, p);
     if (!verify.ok) return verify;
+
     const obj = { username: u, password: p, ts: Date.now() };
     saveAuth(obj);
     setAuth(obj);
+
     const loaded = await loadUserData(u, p);
     if (!loaded.ok) return loaded;
+
     return { ok: true };
   }
 
   function logout() {
+    if (DEV_BYPASS) return;
     clearAuth();
     setAuth(null);
     setSpoons(0);
@@ -66,22 +98,39 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+
     async function bootLoad() {
       if (!isAuthed) { setDataLoaded(false); setDataError(null); setSpoons(0); return; }
       const u = username;
       const p = password;
+
       const res = await loadUserData(u, p);
       if (cancelled) return;
+
       if (!res.ok) {
-        clearAuth();
-        setAuth(null);
+        if (!DEV_BYPASS) {
+          clearAuth();
+          setAuth(null);
+        }
       }
     }
+
     bootLoad();
     return () => { cancelled = true; };
   }, [isAuthed, username, password]);
 
-  const value = useMemo(() => ({ booted, isAuthed, username, authHeader, spoons, dataLoaded, dataError, login, logout }), [booted, isAuthed, username, authHeader, spoons, dataLoaded, dataError]);
+  const value = useMemo(() => ({
+    booted,
+    isAuthed,
+    username,
+    authHeader,
+    spoons,
+    dataLoaded,
+    dataError,
+    login,
+    logout,
+    isDevBypass: DEV_BYPASS
+  }), [booted, isAuthed, username, authHeader, spoons, dataLoaded, dataError]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
