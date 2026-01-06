@@ -2,10 +2,11 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
 import TopBar from "./TopBar.jsx";
+import { useAuth } from "../auth/AuthProvider.jsx";
 
 export default function AppLayout() {
   const location = useLocation();
-  const spoons = 10;
+  const { spoons } = useAuth();
   const fatiguePct = 0.15;
 
   return (

@@ -49,10 +49,10 @@ export async function copypartyVerifyLogin(username, password) {
     if (res.status === 207 || res.status === 200) return { ok: true };
 
     // Wrong password (existing user) tends to be 401/403, and can trigger the browser auth popup
-    if (res.status === 401 || res.status === 403) return { ok: false, error: "Wrong password (or you don't have access)." };
+    if (res.status === 401 || res.status === 403) return { ok: false, error: "Wrong password. Please try again." };
 
     // Username/folder doesn't exist
-    if (res.status === 404) return { ok: false, error: "No such user (folder not found)." };
+    if (res.status === 404) return { ok: false, error: "User not found. Please try again." };
 
     // Anything else: show the code so we can debug (409/5xx/etc)
     return { ok: false, error: `Copyparty returned HTTP ${res.status}.` };
