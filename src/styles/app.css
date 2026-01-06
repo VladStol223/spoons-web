@@ -201,13 +201,35 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 /* --- Mobile PORTRAIT only --- */
 @media (max-width: 820px) and (orientation: portrait) {
   .appShell { padding: 0; flex-direction: column; }
-  .sidebar { position: fixed; left: 0; right: 0; bottom: 0; width: 100%; height: calc(var(--hubBarH) + env(safe-area-inset-bottom)); border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; border-top: 6px solid var(--frame); padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); z-index: 50; }
 
-  .sidebarInner { width: 100%; }
-  .hubNav { flex-direction: row; justify-content: space-around; gap: 0; width: 100%; }
-  .hubItem { width: 64px; height: 58px; border-radius: 14px; }
-  .hubIcon { font-size: 26px; }
-  .hubSub { font-size: 11px; font-weight: 800; color: #111; background: var(--paper); padding: 2px 6px; border-radius: 7px; margin-top: 4px; }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: calc(var(--hubBarH) + env(safe-area-inset-bottom));
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-top: 6px solid var(--frame);
+    padding: 0 10px env(safe-area-inset-bottom);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebarInner { width: 100%; height: var(--hubBarH); display: flex; align-items: center; }
+
+  .hubNav { flex-direction: row; justify-content: space-around; gap: 0; width: 100%; height: 100%; align-items: center; }
+
+  /* Make button height respond to bar height so centering is always possible */
+  .hubItem { width: 56px; height: calc(var(--hubBarH) - 10px); border-radius: 14px; }
+
+  .hubIcon { font-size: 24px; }
+  .hubSub { display: block; font-size: 10px; margin-top: 2px; }
 
   .mainColumn {
     margin-left: 0;
