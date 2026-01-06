@@ -6,7 +6,7 @@
   --olive-2: #31401f;
   --gold: #d7b45a;
   --text: #f2f0e8;
-  --hubBarH: 72px;
+  --hubBarH: 38px;
 }
 
 * { box-sizing: border-box; }
@@ -40,8 +40,12 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .hubNav { display: flex; flex-direction: column; gap: 18px; align-items: center; width: 100%; }
 
-.hubItem { width: 70px; height: 70px; border-radius: 16px; display: grid; place-items: center; text-decoration: none; position: relative; background: rgba(0,0,0,0.08); border: 2px solid rgba(0,0,0,0.35); }
-.hubItem.hubActive { border-color: #7ee081; box-shadow: inset 0 0 0 1px rgba(126,224,129,0.25); }
+.hubItem { width: 70px; height: 70px; border-radius: 16px; display: grid; place-items: center; text-decoration: none; position: relative; background: rgba(0,0,0,0.08); border: 0; box-shadow: none; }
+
+/* active hub: lighter background (no aura, no border) */
+.hubItem.hubActive { background: rgba(255,255,255,0.14); }
+
+.hubItem:active { transform: translateY(1px); }
 
 .hubIcon { font-size: 30px; line-height: 1; }
 
