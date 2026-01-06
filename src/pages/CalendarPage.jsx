@@ -39,9 +39,16 @@ function TimeGrid({ view, selectedDate, onPickDate }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const cols = useMemo(() => getColumnsForView(view, selectedDate), [view, selectedDate]);
   const showVertical = view !== "day";
+  const [nowTs, setNowTs] = useState(() => Date.now());
+
+  React.useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
+
+  const showNowLine = useMemo(() => cols.some((d) => isSameDay(d, today)), [cols, today]);
+  const nowTopPx = useMemo(() => { const n = new Date(nowTs); const mins = (n.getHours() * 60) + n.getMinutes(); return (mins / 60) * 64; }, [nowTs]);
 
   return (
     <div className="calMonthView calTimeView">
+
       <div className="calTimeHeader">
         <div className="calTimeHeaderGutter" />
         <div className="calTimeHeaderCols" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>
@@ -64,7 +71,13 @@ function TimeGrid({ view, selectedDate, onPickDate }) {
       </div>
 
       <div className="calTimeScroll">
-        <div className="calTimeGutter">
+        <div className="calTimeGutter calTimeGutterPos">
+          {showNowLine ? (
+            <div className="calNowPill" style={{ top: `${nowTopPx}px`, marginTop: '1px' }}>
+              {new Date(nowTs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              <div className="calNowPillConnector" />
+            </div>
+          ) : null}
           {Array.from({ length: 24 }).map((_, h) => (
             <div key={h} className="calTimeTick">
               <div className="calTimeTickLabel">{hourLabel(h)}</div>
@@ -74,6 +87,7 @@ function TimeGrid({ view, selectedDate, onPickDate }) {
 
         <div className="calTimeGridArea">
           <div className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>
+            {showNowLine ? <div className="calNowLine" style={{ top: `${nowTopPx}px` }} /> : null}
             {/* horizontal hour + half-hour lines (spans ALL columns) */}
             {Array.from({ length: 24 }).map((_, h) => (
               <div key={h} className="calTimeRow">
@@ -151,8 +165,8 @@ export default function CalendarPage() {
         <button className="calBtn calBtnPrimary" onClick={() => nav("/tasks")} type="button">Add Task</button>
         <div className="calViewGroup">
           <button className={`calBtn ${view === "day" ? "calBtnActive" : ""}`} onClick={() => onPickView("day")} type="button">Day</button>
-          <button className={`calBtn ${view === "schoolWeek" ? "calBtnActive" : ""}`} onClick={() => onPickView("schoolWeek")} type="button">School Week</button>
-          <button className={`calBtn ${view === "week" ? "calBtnActive" : ""}`} onClick={() => onPickView("week")} type="button">Week</button>
+          <button className={`calBtn calHideMobile ${view === "schoolWeek" ? "calBtnActive" : ""}`} onClick={() => onPickView("schoolWeek")} type="button">School Week</button>
+          <button className={`calBtn calHideMobile ${view === "week" ? "calBtnActive" : ""}`} onClick={() => onPickView("week")} type="button">Week</button>
           <button className={`calBtn ${view === "month" ? "calBtnActive" : ""}`} onClick={() => onPickView("month")} type="button">Month</button>
         </div>
       </div>
