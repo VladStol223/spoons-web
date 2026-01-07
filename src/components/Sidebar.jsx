@@ -18,7 +18,13 @@ export default function Sidebar() {
       <div className="sidebarInner">
         <nav className="hubNav">
           {items.map((it) => (
-            <NavLink key={it.to} to={it.to} title={it.label} className={({ isActive }) => `hubItem ${isActive ? "hubActive" : ""}`}>
+            <NavLink
+              key={it.to}
+              to={it.to}
+              replace
+              title={it.label}
+              className={({ isActive }) => `hubItem ${isActive ? "hubActive" : ""}`}
+            >
               <div className="hubIcon">{it.icon}</div>
               {it.sub ? <div className="hubSub">{it.sub}</div> : null}
             </NavLink>

@@ -7,10 +7,14 @@
   --gold: #d7b45a;
   --text: #f2f0e8;
   --hubBarH: 55px;
+  --contentPadY: 28px; /* matches .contentArea vertical padding (14px top + 14px bottom on mobile) */
+  --calGapAboveHub: 10px;
+  --calPanelH: 520px;
+
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; width: 100%; overflow: hidden; }
+html, body { height: 100%; width: 100%; overflow: hidden; overscroll-behavior-x: none;}
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #222; overscroll-behavior: none; -webkit-overflow-scrolling: auto; touch-action: manipulation; }
 #root { height: 100%; overflow: hidden; }
 
@@ -21,6 +25,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   background: var(--frame-dark);
   padding: 16px;
   overflow: hidden;
+  overscroll-behavior-x: none;
 }
 
 .sidebar {
@@ -255,10 +260,29 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .restRow { grid-template-columns: 1fr; gap: 14px; }
   .restCard { height: 160px; max-width: 520px; }
   .calHideMobile { display: none !important; }
+  .hubNav { transform: translateY(-3px); }
+
+  /* Put mobile-only vars on html/body instead of :root in a media query */
+  html { --calPanelH: auto; }
+
+  /* Make the content column a real "fill remaining height" container */
+  .contentArea { flex: 1; min-height: 0; align-items: stretch; justify-content: center; }
+
+  /* Let CalendarPage fill the available height above the hub bar padding */
+  .pageWrap { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+  .calendarWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* Make the calendar body take remaining space under its header rows */
+  .calBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* Month panel and time panel should just fill the available body space */
+  .calMonthView { height: 100%; min-height: 0; }
+  .calTimeScroll { height: 100%; min-height: 0; }
+
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
-  .appShell { padding: 10px; }
+  .appShell { padding: 10px; touch-action: pan-y; }
 
   /* move sidebar to the RIGHT */
   .sidebar { order: 2; width: 96px; padding: 10px 8px; border-radius: 12px; }
@@ -284,9 +308,12 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calBtnPrimary { background: rgba(215,180,90,0.18); border-color: rgba(215,180,90,0.9); color: #fff3d0; }
 .calArrow { width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .calMonthPickerWrap { margin-left: auto; position: relative; }
-.calMonthBtn { min-width: 220px; text-align: center; }
+.calMonthBtn { width: clamp(140px, 42vw, 220px); min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calMonthPickerWrap { min-width: 0; }
+.calSecondRow { flex-wrap: wrap; }
+
 .calBody { width: 100%; }
-.calMonthView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 12px; display: flex; flex-direction: column; height: 520px; }
+.calMonthView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 12px; display: flex; flex-direction: column; height: var(--calPanelH); min-height: 0; }
 
 .calDowRow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; flex: 0 0 auto; }
 
@@ -348,7 +375,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 /* fixed hour height: user must scroll to see all 24 hours */
 :root { --calHourH: 64px; } /* tweak this if you want taller/shorter hours */
 
-.calTimeScroll { display: grid; grid-template-columns: 86px 1fr; height: 520px; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.calTimeScroll { display: grid; grid-template-columns: 86px 1fr; height: var(--calPanelH); overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 .calTimeScroll::-webkit-scrollbar { width: 0; height: 0; }
 
 .calTimeGridArea { overflow: hidden; background: rgba(0,0,0,0.02); }
