@@ -8,11 +8,13 @@ import InputSpoonsPage from "./pages/InputSpoonsPage";
 import InputTasksPage from "./pages/InputTasksPage";
 import ManageTasksPage from "./pages/ManageTasksPage";
 import SettingsPage from "./pages/SettingsPage";
+import RegisterPage from "./pages/RegisterPage";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/spoons" replace />} />

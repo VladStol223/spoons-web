@@ -39,6 +39,7 @@ export default function LoginPage() {
             </label>
             {error ? <div style={{ color: "#ffcf7a", fontWeight: 700 }}>{error}</div> : null}
             <button className="primaryBtn" disabled={busy} type="submit">{busy ? "Logging in..." : "Login"}</button>
+            <button className="primaryBtn" disabled={busy} type="button" onClick={() => nav("/register")}>Create Account</button>
             <div style={{ opacity: 0.85, fontSize: 13 }}>This stores your credentials locally on this device so you stay logged in until you log out.</div>
           </div>
         </form>

@@ -1,4 +1,4 @@
-import { maybeDecryptDownload } from "./copypartyCrypto";
+import { maybeDecryptDownload, encryptForUpload } from "./copypartyCrypto";
 
 function buildAuthHeader(username, password) { const token = btoa(`${username}:${password}`); return `Basic ${token}`; }
 
@@ -19,4 +19,19 @@ export async function fetchAndDecryptDataJson(baseCpPath, username, password) {
   let data = null;
   try { data = JSON.parse(text); } catch (e) { throw new Error("Decrypted data.json is not valid JSON (wrong password or corrupt)."); }
   return data;
+}
+
+export async function uploadEncryptedDataJson(baseCpPath, username, password, dataObj) {
+  const base = (baseCpPath || "").replace(/\/+$/, "");
+  const u = (username || "").trim();
+  const p = (password || "").trim();
+  if (!base) throw new Error("Missing Copyparty base (expected /cp).");
+  if (!u || !p) throw new Error("Missing username/password.");
+  const url = `${base}/${encodeURIComponent(u)}/data.json`;
+  const text = JSON.stringify(dataObj ?? {});
+  const plain = new TextEncoder().encode(text);
+  const encBlob = await encryptForUpload(plain, u, p);
+  const res = await fetch(url, { method: "PUT", redirect: "follow", credentials: "omit", cache: "no-store", headers: { Authorization: buildAuthHeader(u, p), "Content-Type": "application/octet-stream", "Cache-Control": "no-store" }, body: encBlob });
+  if (!res.ok) throw new Error(`Failed to upload data.json (HTTP ${res.status}).`);
+  return true;
 }

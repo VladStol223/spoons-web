@@ -60,3 +60,31 @@ export async function copypartyVerifyLogin(username, password) {
     return { ok: false, error: "Network/proxy error contacting Copyparty. If this is unexpected, verify /cp/ works from the VPS with curl." };
   }
 }
+
+function sanitizeStem(stem) {
+  let s = (stem || "").trim();
+  s = s.replace(/[^A-Za-z0-9._-]+/g, "_");
+  if (s.includes(".")) s = s.split(".", 1)[0];
+  return s || "user";
+}
+
+export async function copypartyCreateAccount(username, password) {
+  const u = (username || "").trim();
+  const p = (password || "").trim();
+  if (!u || !p) return { ok: false, error: "Enter a username and password." };
+  const nb = normalizeBase(BASE_RAW);
+  if (!nb.ok) return nb;
+  const base = nb.base;
+  const stem = sanitizeStem(u);
+  const url = `${base}/new_users/${encodeURIComponent(stem)}.txt`;
+  const body = `${u}:${p}`;
+  try {
+    const res = await fetch(url, { method: "PUT", redirect: "follow", credentials: "omit", cache: "no-store", headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }, body });
+    if (res.status === 200 || res.status === 201 || res.status === 204) return { ok: true };
+    if (res.status === 409) return { ok: false, error: "That username is already taken." };
+    if (res.status === 403) return { ok: false, error: "Registration is disabled or forbidden." };
+    return { ok: false, error: `Register failed (HTTP ${res.status}).` };
+  } catch (e) {
+    return { ok: false, error: "Network/proxy error contacting Copyparty." };
+  }
+}
