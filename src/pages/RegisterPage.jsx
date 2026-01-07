@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { copypartyCreateAccount } from "../copypartyApi";
+import ThemeToggleButton from "../theme/ThemeToggleButton";
 
 export default function RegisterPage() {
   const nav = useNavigate();
@@ -49,7 +50,11 @@ export default function RegisterPage() {
         <div className="authLinks">
           <span style={{ color: "rgba(255,255,255,0.92)", fontWeight: 800 }}>Have an account? </span>
           <Link className="authLink" to="/login">Log in</Link>
+          <div className="authThemeRow">
+            <ThemeToggleButton size="sm" />
+          </div>
         </div>
+
       </form>
     </div>
   );

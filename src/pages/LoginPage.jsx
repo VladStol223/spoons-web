@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import ThemeToggleButton from "../theme/ThemeToggleButton";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -40,7 +41,11 @@ export default function LoginPage() {
 
         <div className="authLinks">
           <Link className="authLink" to="/register">Create an account</Link>
+          <div className="authThemeRow">
+            <ThemeToggleButton size="sm" />
+          </div>
         </div>
+
       </form>
     </div>
   );

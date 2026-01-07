@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import ThemeToggleButton from "../theme/ThemeToggleButton";
 
 export default function SettingsPage() {
   const { username, logout } = useAuth();
@@ -13,7 +14,10 @@ export default function SettingsPage() {
       <h1>Settings</h1>
       <div style={{ display: "grid", gap: 12, maxWidth: 520 }}>
         <div style={{ fontWeight: 800 }}>Currently logged in as: {username}</div>
-        <button className="primaryBtn" onClick={onLogout}>Logout</button>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <ThemeToggleButton />
+          <button className="primaryBtn" onClick={onLogout}>Logout</button>
+        </div>
       </div>
     </div>
   );

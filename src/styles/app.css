@@ -463,23 +463,69 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
+  position: relative;
+  overflow: hidden;
 
-  /* light blue -> light purple gradient */
-  background: radial-gradient(1200px 800px at 20% 20%, rgba(160, 220, 255, 0.85), transparent 55%),
-              radial-gradient(1100px 700px at 80% 10%, rgba(198, 180, 255, 0.85), transparent 55%),
-              linear-gradient(135deg, #9fdcff 0%, #cbb6ff 55%, #f0d9ff 100%);
+  background: linear-gradient(135deg, var(--authBgA) 0%, var(--authBgB) 55%, var(--authBgC) 100%);
+}
+
+.authBackground::before,
+.authBackground::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  will-change: transform;
+  filter: blur(0px);
+  opacity: 0.9;
+}
+
+.authBackground::before {
+  background: radial-gradient(1200px 800px at 20% 20%, rgba(160, 220, 255, 0.85), transparent 55%);
+  animation: authFloatA 18s ease-in-out infinite;
+}
+
+.authBackground::after {
+  background: radial-gradient(1100px 700px at 80% 10%, rgba(198, 180, 255, 0.85), transparent 55%);
+  animation: authFloatB 22s ease-in-out infinite;
+  opacity: 0.85;
+}
+
+@keyframes authFloatA {
+  0%   { transform: translate3d(-1.5%, -1.0%, 0) scale(1.02); }
+  50%  { transform: translate3d( 1.8%,  1.2%, 0) scale(1.06); }
+  100% { transform: translate3d(-1.5%, -1.0%, 0) scale(1.02); }
+}
+
+@keyframes authFloatB {
+  0%   { transform: translate3d( 1.2%,  1.4%, 0) scale(1.02); }
+  50%  { transform: translate3d(-1.6%, -1.0%, 0) scale(1.07); }
+  100% { transform: translate3d( 1.2%,  1.4%, 0) scale(1.02); }
+}
+
+/* keep the card above the animated layers */
+.authCard {
+  position: relative;
+  z-index: 1;
+}
+
+/* accessibility: disable motion if user prefers */
+@media (prefers-reduced-motion: reduce) {
+  .authBackground::before,
+  .authBackground::after {
+    animation: none;
+  }
 }
 
 .authCard {
   width: min(420px, 92vw);
   padding: 26px 24px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255,255,255,0.28);
+  background: var(--authCardBg);
+  border: 1px solid var(--authCardBorder);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.22);
-
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -517,12 +563,12 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   width: 100%;
   padding: 12px 14px;
   font-size: 1rem;
-  border: 1px solid rgba(255,255,255,0.55);
+  border: 1px solid var(--authInputBorder);
   border-radius: 10px;
-  background: rgba(255,255,255,0.38);
+  background: var(--authInputBg);
   text-align: center;
   outline: none;
-  color: rgba(0,0,0,0.82);
+  color: var(--authText);
   font-weight: 700;
 }
 
@@ -534,8 +580,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 }
 
 .authButton {
-  background: #ffffff;
-  color: #edcdf8;
+  background: var(--authBtnBg);
+  color: var(--authBtnText);
   font-size: 1.1rem;
   padding: 12px 14px;
   border: none;
@@ -564,3 +610,44 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .authCard { padding: 22px 18px; }
   .authTitle { font-size: 1.75rem; }
 }
+
+:root {
+  --authBgA: #9fdcff;
+  --authBgB: #cbb6ff;
+  --authBgC: #f0d9ff;
+  --authCardBg: rgba(255, 255, 255, 0.16);
+  --authCardBorder: rgba(255, 255, 255, 0.28);
+  --authText: rgba(255, 255, 255, 0.95);
+  --authInputBg: rgba(255, 255, 255, 0.38);
+  --authInputBorder: rgba(255, 255, 255, 0.55);
+  --authBtnBg: rgba(255, 255, 255, 0.92);
+  --authBtnText: #1b2a6b;
+}
+
+html[data-theme="dark"] {
+  --authBgA: #0b1633;
+  --authBgB: #24123f;
+  --authBgC: #101b2e;
+  --authCardBg: rgba(0, 0, 0, 0.28);
+  --authCardBorder: rgba(255, 255, 255, 0.14);
+  --authText: rgba(255, 255, 255, 0.92);
+  --authInputBg: rgba(0, 0, 0, 0.22);
+  --authInputBorder: rgba(255, 255, 255, 0.18);
+  --authBtnBg: rgba(255, 255, 255, 0.92);
+  --authBtnText: #1b2a6b;
+}
+
+.themeToggleBtn {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,0.22);
+  background: rgba(0,0,0,0.12);
+  color: rgba(255,255,255,0.95);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.themeToggleBtn_sm { padding: 8px 12px; font-size: 0.9rem; }
+.themeToggleBtn_md { padding: 10px 14px; font-size: 0.95rem; }
+
+.authThemeRow { margin-top: 12px; display: flex; justify-content: center; }
