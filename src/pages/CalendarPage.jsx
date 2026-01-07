@@ -42,50 +42,39 @@ function loadLocalDataJson() {
 }
 
 function getStoredCopypartyCreds() {
-  // Try a few likely shapes without forcing you to change other files right now.
-  // 1) Single JSON blob
-  const blobKeys = ["cp_auth", "copyparty_auth", "auth", "session_auth"];
-  for (const k of blobKeys) {
-    const raw = localStorage.getItem(k);
-    const j = raw ? safeParseJson(raw) : null;
-    const u = String(j?.username || j?.user || "").trim();
-    const p = String(j?.password || j?.pass || "").trim();
-    if (u && p) return { username: u, password: p };
-  }
-
-  // 2) Separate fields
-  const userKeys = ["cp_username", "copyparty_username", "username", "auth_username", "user"];
-  const passKeys = ["cp_password", "copyparty_password", "password", "auth_password", "pass"];
-
-  for (const uk of userKeys) {
-    const u = String(localStorage.getItem(uk) || "").trim();
-    if (!u) continue;
-    for (const pk of passKeys) {
-      const p = String(localStorage.getItem(pk) || "").trim();
-      if (p) return { username: u, password: p };
-    }
-  }
-
+  const raw = localStorage.getItem("spoonsAuth");
+  const j = raw ? safeParseJson(raw) : null;
+  const u = String(j?.username || j?.user || "").trim();
+  const p = String(j?.password || j?.pass || "").trim();
+  if (u && p) return { username: u, password: p };
   return null;
 }
 
-function buildTasksByDate(data) {
-  const out = {};
-  if (!data || typeof data !== "object") return out;
-  const folderKeys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
-  for (let i = 0; i < folderKeys.length; i++) {
-    const k = folderKeys[i];
-    const arr = Array.isArray(data[k]) ? data[k] : [];
-    for (const t of arr) {
-      const ymd = parseDueYmd(t?.due_date);
-      const name = taskName(t);
-      if (!ymd || !name) continue;
-      if (!out[ymd]) out[ymd] = [];
-      out[ymd].push({ name, complete: isCompleteTask(t), folderIndex: i + 1 });
+function buildTasksByDate(dataObj) {
+  const map = {};
+  if (!dataObj || typeof dataObj !== "object") return map;
+  const lists = [dataObj.folder_1_tasks, dataObj.folder_2_tasks, dataObj.folder_3_tasks, dataObj.folder_4_tasks, dataObj.folder_5_tasks, dataObj.folder_6_tasks];
+  for (const lst of lists) {
+    if (!Array.isArray(lst)) continue;
+    for (const t of lst) {
+      if (!t || typeof t !== "object") continue;
+      const dueRaw = t.due_date;
+      if (!dueRaw || typeof dueRaw !== "string") continue;
+      const ymd = dueRaw.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) continue;
+      const name = String(t.task_name || "").trim();
+      if (!name) continue;
+      const spoonsNeeded = Number(t.spoons_needed || 0);
+      const done = Number(t.done || 0);
+      const isComplete = spoonsNeeded > 0 && done >= spoonsNeeded;
+      if (!map[ymd]) map[ymd] = [];
+      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, raw: t });
     }
   }
-  for (const ymd of Object.keys(out)) out[ymd].sort((a, b) => (a.complete === b.complete ? a.name.localeCompare(b.name) : (a.complete ? 1 : -1)));
-  return out;
+  for (const k of Object.keys(map)) {
+    map[k].sort((a, b) => Number(a.isComplete) - Number(b.isComplete));
+  }
+  return map;
 }
 
 function monthsDiff(aMonthDate, bMonthDate) { return ((bMonthDate.getFullYear() - aMonthDate.getFullYear()) * 12) + (bMonthDate.getMonth() - aMonthDate.getMonth()); }
@@ -152,6 +141,8 @@ export default function CalendarPage() {
 
   const [dataObj, setDataObj] = useState(() => loadLocalDataJson());
   const tasksByDate = useMemo(() => buildTasksByDate(dataObj), [dataObj]);
+
+  useEffect(() => { console.log("Calendar dataObj keys:", dataObj ? Object.keys(dataObj) : null); console.log("Calendar tasksByDate sample:", tasksByDate); }, [dataObj, tasksByDate]);
 
   useEffect(() => {
     let alive = true;
