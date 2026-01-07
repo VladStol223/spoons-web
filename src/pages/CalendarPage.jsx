@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchAndDecryptDataJson } from "../copypartyData";
 
 function pad2(n) { return String(n).padStart(2, "0"); }
 function isoYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -30,13 +31,41 @@ function isCompleteTask(t) { const need = Number(t?.spoons_needed || 0); const d
 function taskName(t) { return String(t?.task_name || "").trim(); }
 
 function loadLocalDataJson() {
-  const keys = ["spoons_data_json", "data.json", "spoonsData", "spoons_data"];
+  const keys = ["spoons_data_json", "data.json", "spoonsData", "spoons_data", "spoons_data_cache"];
   for (const k of keys) {
     const v = localStorage.getItem(k);
     if (!v) continue;
     const j = safeParseJson(v);
     if (j && typeof j === "object") return j;
   }
+  return null;
+}
+
+function getStoredCopypartyCreds() {
+  // Try a few likely shapes without forcing you to change other files right now.
+  // 1) Single JSON blob
+  const blobKeys = ["cp_auth", "copyparty_auth", "auth", "session_auth"];
+  for (const k of blobKeys) {
+    const raw = localStorage.getItem(k);
+    const j = raw ? safeParseJson(raw) : null;
+    const u = String(j?.username || j?.user || "").trim();
+    const p = String(j?.password || j?.pass || "").trim();
+    if (u && p) return { username: u, password: p };
+  }
+
+  // 2) Separate fields
+  const userKeys = ["cp_username", "copyparty_username", "username", "auth_username", "user"];
+  const passKeys = ["cp_password", "copyparty_password", "password", "auth_password", "pass"];
+
+  for (const uk of userKeys) {
+    const u = String(localStorage.getItem(uk) || "").trim();
+    if (!u) continue;
+    for (const pk of passKeys) {
+      const p = String(localStorage.getItem(pk) || "").trim();
+      if (p) return { username: u, password: p };
+    }
+  }
+
   return null;
 }
 
@@ -121,8 +150,49 @@ export default function CalendarPage() {
   const visibleMonthIdx = visibleMonth.getMonth();
   const headerLabel = useMemo(() => `${monthName(visibleMonthIdx)} ${visibleYear}`, [visibleMonthIdx, visibleYear]);
 
-  const localData = useMemo(() => loadLocalDataJson(), []);
-  const tasksByDate = useMemo(() => buildTasksByDate(localData), [localData]);
+  const [dataObj, setDataObj] = useState(() => loadLocalDataJson());
+  const tasksByDate = useMemo(() => buildTasksByDate(dataObj), [dataObj]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function hydrate() {
+      // If you have a local cached copy, use it immediately (fast render),
+      // but still try to refresh from Copyparty if logged in.
+      const cached = loadLocalDataJson();
+      if (cached && alive) setDataObj(cached);
+
+      const creds = getStoredCopypartyCreds();
+      if (!creds) return;
+
+      const base = (import.meta.env.VITE_COPYPARTY_BASE || "").trim();
+      if (!base) return;
+
+      try {
+        const fresh = await fetchAndDecryptDataJson(base, creds.username, creds.password);
+        if (!alive) return;
+        setDataObj(fresh);
+        // optional: cache it so calendar works instantly next time
+        try { localStorage.setItem("spoons_data_cache", JSON.stringify(fresh)); } catch {}
+      } catch (e) {
+        // If fetch fails, we still show cached data (if any).
+        // Intentionally silent to avoid spamming UI while you iterate.
+      }
+    }
+
+    hydrate();
+
+    // Refresh when returning to the tab (common when you add/edit tasks then come back)
+    function onFocus() { hydrate(); }
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   const [anim, setAnim] = useState(null);
   const tapRef = useRef({ ymd: "", ts: 0 });
