@@ -1,5 +1,6 @@
+// src/pages/LoginPage.jsx
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 
 export default function LoginPage() {
@@ -10,40 +11,37 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
-  async function onSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
+    setError("");
     setBusy(true);
     const res = await login(username, password);
     setBusy(false);
-    if (!res.ok) return setError(res.error || "Login failed.");
+    if (!res.ok) return setError(res.error || "Invalid credentials");
     const go = loc.state?.from || "/spoons";
     nav(go, { replace: true });
   }
 
   return (
-    <div className="pageWrap">
-      <h1>Login</h1>
-      <div style={{ maxWidth: 420 }}>
-        <form onSubmit={onSubmit}>
-          <div style={{ display: "grid", gap: 10 }}>
-            <label>
-              <div style={{ marginBottom: 6 }}>Copyparty Username</div>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.15)", color: "var(--text)" }} />
-            </label>
-            <label>
-              <div style={{ marginBottom: 6 }}>Copyparty Password</div>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.15)", color: "var(--text)" }} />
-            </label>
-            {error ? <div style={{ color: "#ffcf7a", fontWeight: 700 }}>{error}</div> : null}
-            <button className="primaryBtn" disabled={busy} type="submit">{busy ? "Logging in..." : "Login"}</button>
-            <button className="primaryBtn" disabled={busy} type="button" onClick={() => nav("/register")}>Create Account</button>
-            <div style={{ opacity: 0.85, fontSize: 13 }}>This stores your credentials locally on this device so you stay logged in until you log out.</div>
-          </div>
-        </form>
-      </div>
+    <div className="authBackground">
+      <form onSubmit={handleSubmit} className="authCard">
+        <div className="authHeaderSmall">Spoons</div>
+        <h1 className="authTitle">Login</h1>
+
+        {error ? <div className="authError">{error}</div> : null}
+
+        <input className="authInput" type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" autoComplete="username" />
+
+        <input className="authInput" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" />
+
+        <button type="submit" className="authButton" disabled={busy}>{busy ? "Signing in..." : "Sign In"}</button>
+
+        <div className="authLinks">
+          <Link className="authLink" to="/register">Create an account</Link>
+        </div>
+      </form>
     </div>
   );
 }
