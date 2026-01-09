@@ -49,7 +49,7 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
   return (
     <header className="topBar" style={{ padding: "12px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
           <input
             value={editText}
             onChange={(e) => setEditText(e.target.value.replace(/[^\d]/g, ""))}
@@ -58,7 +58,8 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
             inputMode="numeric"
             aria-label="Spoons count"
             style={{
-              width: 70,
+              width: "auto",
+              minWidth: 28,
               padding: 0,
               margin: 0,
               border: "none",
