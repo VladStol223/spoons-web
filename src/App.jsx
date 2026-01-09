@@ -4,6 +4,7 @@ import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import CalendarPage from "./pages/CalendarPage";
+import SocialPage from "./pages/SocialPage";
 import InputSpoonsPage from "./pages/InputSpoonsPage";
 import InputTasksPage from "./pages/InputTasksPage";
 import ManageTasksPage from "./pages/ManageTasksPage";
@@ -17,8 +18,9 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/spoons" replace />} />
+          <Route path="/" element={<Navigate to="/calendar" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/social" element={<SocialPage />} />
           <Route path="/spoons" element={<InputSpoonsPage />} />
           <Route path="/tasks" element={<InputTasksPage />} />
           <Route path="/manage" element={<ManageTasksPage />} />

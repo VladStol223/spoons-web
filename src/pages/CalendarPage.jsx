@@ -29,6 +29,7 @@ function safeParseJson(s) { try { return JSON.parse(s); } catch { return null; }
 function parseDueYmd(due) { if (!due) return null; if (typeof due === "string") return due.slice(0, 10); if (due instanceof Date) return isoYmd(due); return null; }
 function isCompleteTask(t) { const need = Number(t?.spoons_needed || 0); const done = Number(t?.done || 0); return need > 0 && done >= need; }
 function taskName(t) { return String(t?.task_name || "").trim(); }
+function parseTaskTimeMinutes(raw) { const s = String(raw?.time || raw?.due_time || raw?.start_time || raw?.scheduled_time || "").trim(); if (!s) return null; const m = s.match(/^(\d{1,2}):(\d{2})/); if (!m) return null; const hh = Number(m[1]); const mm = Number(m[2]); if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null; if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null; return (hh * 60) + mm; }
 
 function loadLocalDataJson() {
   const keys = ["spoons_data_json", "data.json", "spoonsData", "spoons_data", "spoons_data_cache"];
@@ -67,12 +68,21 @@ function buildTasksByDate(dataObj) {
       const spoonsNeeded = Number(t.spoons_needed || 0);
       const done = Number(t.done || 0);
       const isComplete = spoonsNeeded > 0 && done >= spoonsNeeded;
+      const timeMins = parseTaskTimeMinutes(t);
       if (!map[ymd]) map[ymd] = [];
-      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, raw: t });
+      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, raw: t });
     }
   }
   for (const k of Object.keys(map)) {
-    map[k].sort((a, b) => Number(a.isComplete) - Number(b.isComplete));
+    map[k].sort((a, b) => {
+      const aHas = Number(a.timeMins != null);
+      const bHas = Number(b.timeMins != null);
+      if (aHas !== bHas) return aHas - bHas;
+      const at = a.timeMins ?? 999999;
+      const bt = b.timeMins ?? 999999;
+      if (at !== bt) return at - bt;
+      return Number(a.isComplete) - Number(b.isComplete);
+    });
   }
   return map;
 }
@@ -81,7 +91,7 @@ function monthsDiff(aMonthDate, bMonthDate) { return ((bMonthDate.getFullYear() 
 function daysDiff(aDay, bDay) { const ms = startOfDay(bDay).getTime() - startOfDay(aDay).getTime(); return Math.round(ms / 86400000); }
 function clampMs(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
-function TimeGridInner({ view, selectedDate, onPickDate }) {
+function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const cols = useMemo(() => getColumnsForView(view, selectedDate), [view, selectedDate]);
   const showVertical = view !== "day";
@@ -89,6 +99,9 @@ function TimeGridInner({ view, selectedDate, onPickDate }) {
   React.useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   const showNowLine = useMemo(() => cols.some((d) => isSameDay(d, today)), [cols, today]);
   const nowTopPx = useMemo(() => { const n = new Date(nowTs); const mins = (n.getHours() * 60) + n.getMinutes(); return (mins / 60) * 64; }, [nowTs]);
+
+  function tasksForDay(d) { const ymd = isoYmd(d); const arr = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : []; return arr; }
+  function splitAllDayAndTimed(arr) { const allDay = []; const timed = []; for (const t of arr) { if (t?.timeMins == null) allDay.push(t); else timed.push(t); } return { allDay, timed }; }
 
   return (
     <div className="calTimeInner">
@@ -103,6 +116,22 @@ function TimeGridInner({ view, selectedDate, onPickDate }) {
                 <div className="calTimeHeaderDow">{dowShort(d)}</div>
                 <div className="calTimeHeaderDom">{monthName(d.getMonth()).slice(0, 3)} {d.getDate()}</div>
               </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="calAllDayRow">
+        <div className="calAllDayGutter">All-day</div>
+        <div className="calAllDayCols" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>
+          {cols.map((d) => {
+            const all = tasksForDay(d);
+            const { allDay } = splitAllDayAndTimed(all);
+            const key = isoYmd(d);
+            return (
+              <div key={key} className="calAllDayCell">
+                {allDay.slice(0, 6).map((t, idx) => (<div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
+                {allDay.length > 6 ? (<div className="calAllDayMore">+{allDay.length - 6} more</div>) : null}
+              </div>
             );
           })}
         </div>
@@ -188,6 +217,8 @@ export default function CalendarPage() {
   const [anim, setAnim] = useState(null);
   const tapRef = useRef({ ymd: "", ts: 0 });
   const swipeRef = useRef({ active: false, id: null, sx: 0, sy: 0, st: 0, mx: 0, my: 0 });
+  const monthCellProbeRef = useRef(null);
+  const [monthMaxLines, setMonthMaxLines] = useState(3);
 
   function computeDurationMs(fromSnap, toSnap) {
     const maxMs = 2000;
@@ -284,6 +315,28 @@ export default function CalendarPage() {
   const monthGrid = useMemo(() => getMonthGrid(visibleMonth), [visibleMonth]);
   const monthWeeks = useMemo(() => Math.ceil(monthGrid.length / 7), [monthGrid]);
 
+  useEffect(() => {
+    const el = monthCellProbeRef.current;
+    if (!el) return;
+    function compute() {
+      const rect = el.getBoundingClientRect();
+      const cellH = rect.height || 0;
+      const padTop = 10;
+      const dayNumH = 18;
+      const gap = 6;
+      const lineH = 14;
+      const tasksArea = Math.max(0, cellH - padTop - dayNumH - gap - 6);
+      const lines = Math.max(1, Math.floor(tasksArea / (lineH + 4)));
+      setMonthMaxLines(Math.max(1, Math.min(6, lines)));
+    }
+    compute();
+    let ro = null;
+    if (window.ResizeObserver) { ro = new ResizeObserver(() => compute()); ro.observe(el); }
+    window.addEventListener("resize", compute);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", compute); };
+  }, [view, monthWeeks]);
+
+
   function MonthInner({ snapSelected, snapVisibleMonth }) {
     const snapMonthIdx = snapVisibleMonth.getMonth();
     const snapMonthGrid = getMonthGrid(snapVisibleMonth);
@@ -295,22 +348,25 @@ export default function CalendarPage() {
           <div className="calDow">Mon</div><div className="calDow">Tue</div><div className="calDow">Wed</div><div className="calDow">Thu</div><div className="calDow">Fri</div><div className="calDow">Sat</div><div className="calDow">Sun</div>
         </div>
         <div className="calGrid">
-          {snapMonthGrid.map((d) => {
+          {snapMonthGrid.map((d, i) => {
             const inMonth = d.getMonth() === snapMonthIdx;
             const isToday0 = isSameDay(d, today);
             const isSelected0 = isSameDay(d, snapSelected);
             const ymd = isoYmd(d);
             const tasks = Array.isArray(tasksByDate[ymd]) ? tasksByDate[ymd] : [];
-            const showLines = tasks.slice(0, 2);
-            const moreCount = Math.max(0, tasks.length - showLines.length);
+            const maxLines = Math.max(1, Number(monthMaxLines || 3));
+            const canShowAll = tasks.length <= maxLines;
+            const normalLines = canShowAll ? tasks.slice(0, maxLines) : tasks.slice(0, Math.max(0, maxLines - 1));
+            const hidden = canShowAll ? 0 : Math.max(0, tasks.length - normalLines.length);
+            const showMoreLine = (!canShowAll && maxLines >= 2);
 
             return (
-              <button key={ymd} className={`calCell calCellMonth ${inMonth ? "" : "calCellMuted"} ${isToday0 ? "calCellToday" : ""} ${isSelected0 ? "calCellSelected" : ""}`} type="button" onClick={() => setSelectedDate(startOfDay(d))} onPointerUp={() => onDayCellTap(d)}>
+              <button key={ymd} ref={(i === 0) ? monthCellProbeRef : null} className={`calCell calCellMonth ${inMonth ? "" : "calCellMuted"} ${isToday0 ? "calCellToday" : ""} ${isSelected0 ? "calCellSelected" : ""}`} type="button" onClick={() => setSelectedDate(startOfDay(d))} onPointerUp={() => onDayCellTap(d)}>
                 <div className="calCellNum">{d.getDate()}</div>
                 {tasks.length ? (
                   <div className="calCellTasks">
-                    {showLines.map((t, idx) => (<div key={`${ymd}_${idx}`} className={`calCellTaskLine ${t.complete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
-                    {moreCount > 0 ? (<div className="calCellMore">{moreCount} more</div>) : null}
+                    {normalLines.map((t, idx) => (<div key={`${ymd}_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
+                    {showMoreLine ? (<div className="calCellMore">+{hidden} more tasks</div>) : null}
                   </div>
                 ) : null}
               </button>
@@ -436,10 +492,10 @@ export default function CalendarPage() {
           {anim ? (
             <div className="calAnimStage">
               <div className="calAnimPane" style={fromPaneStyle}>
-                {anim.fromSnap.view === "month" ? (<MonthInner snapSelected={anim.fromSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.fromSnap.anchorDate)} />) : (<TimeGridInner view={anim.fromSnap.view} selectedDate={anim.fromSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} />)}
+                {anim.fromSnap.view === "month" ? (<MonthInner snapSelected={anim.fromSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.fromSnap.anchorDate)} />) : (<TimeGridInner view={anim.fromSnap.view} selectedDate={anim.fromSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} />)}
               </div>
               <div className="calAnimPane" style={toPaneStyle} onTransitionEnd={onAnimTransitionEnd}>
-                {anim.toSnap.view === "month" ? (<MonthInner snapSelected={anim.toSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.toSnap.anchorDate)} />) : (<TimeGridInner view={anim.toSnap.view} selectedDate={anim.toSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} />)}
+                {anim.toSnap.view === "month" ? (<MonthInner snapSelected={anim.toSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.toSnap.anchorDate)} />) : (<TimeGridInner view={view} selectedDate={selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} />)}
               </div>
             </div>
           ) : (

@@ -7,7 +7,7 @@ export default function Sidebar() {
   const today = useMemo(() => getTodayMMDD(), []);
   const items = [
     { to: "/calendar", label: "Calendar", icon: "📅", sub: today },
-    { to: "/spoons", label: "Input Spoons", icon: "🥄" },
+    { to: "/social", label: "Social", icon: "💬" },
     { to: "/tasks", label: "Input Tasks", icon: "📝" },
     { to: "/manage", label: "Manage Tasks", icon: "📋" },
     { to: "/settings", label: "Settings", icon: "⚙️" }
@@ -18,13 +18,7 @@ export default function Sidebar() {
       <div className="sidebarInner">
         <nav className="hubNav">
           {items.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              replace
-              title={it.label}
-              className={({ isActive }) => `hubItem ${isActive ? "hubActive" : ""}`}
-            >
+            <NavLink key={it.to} to={it.to} replace title={it.label} className={({ isActive }) => `hubItem ${isActive ? "hubActive" : ""}`}>
               <div className="hubIcon">{it.icon}</div>
               {it.sub ? <div className="hubSub">{it.sub}</div> : null}
             </NavLink>
