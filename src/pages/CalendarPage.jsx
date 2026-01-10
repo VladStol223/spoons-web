@@ -110,6 +110,8 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   const [selectedTask, setSelectedTask] = useState(null);
   const [hoverTask, setHoverTask] = useState(null);
   const [dragGhost, setDragGhost] = useState(null);
+  const [dragPayloadCache, setDragPayloadCache] = useState(null);
+
   const ghostRafRef = useRef(0);
   const resizeRef = useRef({ active: false, kind: "", taskId: "", ymd: "", start0: 0, dur0: 60, y0: 0 });
 
@@ -120,12 +122,13 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function onDragStartTask(e, taskId, ymd, durationMins) {
     const payload = { taskId: String(taskId), ymd: String(ymd), durationMins: Number(durationMins || 60) };
     const raw = JSON.stringify(payload);
+    setDragPayloadCache(payload);
     try { e.dataTransfer.effectAllowed = "move"; } catch {}
-
-    // IMPORTANT: set BOTH. Some browsers won't return custom types during dragover.
-    try { e.dataTransfer.setData("application/json", raw); } catch {}
     try { e.dataTransfer.setData("text/plain", raw); } catch {}
+    try { e.dataTransfer.setData("application/json", raw); } catch {}
   }
+
+  function onDragEndTask() { setDragPayloadCache(null); setDragGhost(null); }
 
   function readDragPayload(dt) {
     if (!dt) return null;
@@ -198,7 +201,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function onDropOnGrid(e) {
     e.preventDefault();
     if (typeof onScheduleTask !== "function") return;
-    const payload = readDragPayload(e.dataTransfer);
+    const payload = readDragPayload(e.dataTransfer) || dragPayloadCache;
     const taskId = String(payload?.taskId || "");
     if (!taskId) return;
 
@@ -222,7 +225,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function onDragOverGrid(e) {
     e.preventDefault();
     try { e.dataTransfer.dropEffect = "move"; } catch {}
-    const payload = readDragPayload(e.dataTransfer);
+    const payload = readDragPayload(e.dataTransfer) || dragPayloadCache;
     const taskId = String(payload?.taskId || "");
     if (!taskId) { if (dragGhost) setDragGhost(null); return; }
     const surface = e.currentTarget;
@@ -289,12 +292,12 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
             const { allDay } = splitAllDayAndTimed(all);
             const key = isoYmd(d);
             return (
-              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer);const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); }}>
+              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer) || dragPayloadCache; const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); setDragPayloadCache(null); setDragGhost(null); }}>
                 {allDay.slice(0, 12).map((t, idx) => (
                   <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
                     <div className="calTaskRow">
                       <div className="calTaskName">{t.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} aria-label="Drag to move">≡</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} onDragEnd={onDragEndTask} aria-label="Drag to move">≡</div>
                     </div>
                   </div>
                 ))}
@@ -328,7 +331,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
                     {showHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
                     <div className="calTimedTaskRow">
                       <div className="calTimedTaskName">{b.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} aria-label="Drag to move">≡</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} onDragEnd={onDragEndTask} aria-label="Drag to move">≡</div>
                     </div>
                     {showHandles ? (<div className="calResizeHandle calResizeHandleBottom" onPointerDown={(e) => beginResize(e, "bottom", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag down to extend later">▼</div>) : null}
                   </div>
