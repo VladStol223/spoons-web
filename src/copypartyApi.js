@@ -1,4 +1,4 @@
-const BASE_RAW = (import.meta.env.VITE_COPYPARTY_BASE || "").trim();
+const BASE_RAW = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
 
 function buildAuthHeader(username, password) {
   const token = btoa(`${username}:${password}`);

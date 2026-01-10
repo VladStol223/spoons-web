@@ -411,13 +411,15 @@ export default function CalendarPage() {
     async function hydrate() {
       // If you have a local cached copy, use it immediately (fast render),
       // but still try to refresh from Copyparty if logged in.
+      console.log("hydrate copyparty", { base, creds: !!creds });
+
       const cached = loadLocalDataJson();
       if (cached && alive) setDataObj(cached);
 
       const creds = getStoredCopypartyCreds();
       if (!creds) return;
 
-      const base = (import.meta.env.VITE_COPYPARTY_BASE || "").trim();
+      const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
       if (!base) return;
 
       try {
