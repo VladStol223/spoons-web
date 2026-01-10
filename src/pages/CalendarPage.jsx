@@ -30,6 +30,7 @@ function parseDueYmd(due) { if (!due) return null; if (typeof due === "string") 
 function isCompleteTask(t) { const need = Number(t?.spoons_needed || 0); const done = Number(t?.done || 0); return need > 0 && done >= need; }
 function taskName(t) { return String(t?.task_name || "").trim(); }
 function parseTaskTimeMinutes(raw) { const s = String(raw?.time || raw?.due_time || raw?.start_time || raw?.scheduled_time || "").trim(); if (!s) return null; const m = s.match(/^(\d{1,2}):(\d{2})/); if (!m) return null; const hh = Number(m[1]); const mm = Number(m[2]); if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null; if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null; return (hh * 60) + mm; }
+function parseTaskDurationMinutes(raw) { const n = Number(raw?.duration_mins ?? raw?.duration ?? ""); if (Number.isFinite(n) && n > 0) return Math.max(15, Math.min(24 * 60, Math.round(n))); const end = String(raw?.end_time || raw?.due_end || "").trim(); const start = String(raw?.time || raw?.start_time || "").trim(); const em = end.match(/^(\d{1,2}):(\d{2})/); const sm = start.match(/^(\d{1,2}):(\d{2})/); if (em && sm) { const eh = Number(em[1]), eM = Number(em[2]), sh = Number(sm[1]), sM = Number(sm[2]); const a = (sh * 60) + sM; const b = (eh * 60) + eM; const d = b - a; if (Number.isFinite(d) && d > 0) return Math.max(15, Math.min(24 * 60, Math.round(d))); } return 60; }
 
 function loadLocalDataJson() {
   const keys = ["spoons_data_json", "data.json", "spoonsData", "spoons_data", "spoons_data_cache"];
@@ -70,7 +71,8 @@ function buildTasksByDate(dataObj) {
       const isComplete = spoonsNeeded > 0 && done >= spoonsNeeded;
       const timeMins = parseTaskTimeMinutes(t);
       if (!map[ymd]) map[ymd] = [];
-      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, raw: t });
+      const durationMins = parseTaskDurationMinutes(t);
+      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, durationMins, raw: t });
     }
   }
   for (const k of Object.keys(map)) {
@@ -91,7 +93,7 @@ function monthsDiff(aMonthDate, bMonthDate) { return ((bMonthDate.getFullYear() 
 function daysDiff(aDay, bDay) { const ms = startOfDay(bDay).getTime() - startOfDay(aDay).getTime(); return Math.round(ms / 86400000); }
 function clampMs(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
-function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
+function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onScheduleTask, onUnscheduleTask, onUpdateTaskTimeAndDuration }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const cols = useMemo(() => getColumnsForView(view, selectedDate), [view, selectedDate]);
   const showVertical = view !== "day";
@@ -100,8 +102,146 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
   const showNowLine = useMemo(() => cols.some((d) => isSameDay(d, today)), [cols, today]);
   const nowTopPx = useMemo(() => { const n = new Date(nowTs); const mins = (n.getHours() * 60) + n.getMinutes(); return (mins / 60) * 64; }, [nowTs]);
 
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [hoverTask, setHoverTask] = useState(null);
+  const [dragGhost, setDragGhost] = useState(null);
+  const ghostRafRef = useRef(0);
+  const resizeRef = useRef({ active: false, kind: "", taskId: "", ymd: "", start0: 0, dur0: 60, y0: 0 });
+
+
   function tasksForDay(d) { const ymd = isoYmd(d); const arr = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : []; return arr; }
   function splitAllDayAndTimed(arr) { const allDay = []; const timed = []; for (const t of arr) { if (t?.timeMins == null) allDay.push(t); else timed.push(t); } return { allDay, timed }; }
+
+  function onDragStartTask(e, taskId, ymd, durationMins) { try { e.dataTransfer.setData("application/json", JSON.stringify({ taskId: String(taskId), ymd: String(ymd), durationMins: Number(durationMins || 60) })); } catch {} try { e.dataTransfer.effectAllowed = "move"; } catch {} }
+
+  function snapTo15(mins) { const m = Math.max(0, Math.min(1439, Math.floor(Number(mins) || 0))); return Math.round(m / 15) * 15; }
+  function snapDelta15(mins) { const m = Math.round(Number(mins) || 0); return Math.round(m / 15) * 15; }
+
+  function clampDur(mins) { return Math.max(15, Math.min(24 * 60, Math.round(Number(mins) || 0))); }
+
+  function beginResize(e, kind, b) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof onUpdateTaskTimeAndDuration !== "function") return;
+    resizeRef.current = { active: true, kind, taskId: b.taskId, ymd: b.ymd, start0: b.startMins, dur0: b.durationMins, y0: e.clientY };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+  }
+
+  function moveResize(e) {
+    if (!resizeRef.current.active) return;
+    const r = resizeRef.current;
+    const dy = e.clientY - r.y0;
+    const deltaMins = snapDelta15((dy / 64) * 60);
+    const end0 = r.start0 + r.dur0;
+    if (r.kind === "top") {
+      const proposed = snapTo15(r.start0 + deltaMins);
+      const newStart = Math.max(0, Math.min(end0 - 15, proposed));
+      const newDur = clampDur(end0 - newStart);
+      if (typeof onUpdateTaskTimeAndDuration === "function") onUpdateTaskTimeAndDuration(r.taskId, r.ymd, newStart, newDur);
+      return;
+    }
+    if (r.kind === "bottom") {
+      const proposed = r.dur0 + deltaMins;
+      const newDur = clampDur(proposed);
+      const maxDur = Math.max(15, (24 * 60) - r.start0);
+      const clamped = Math.min(newDur, maxDur);
+      if (typeof onUpdateTaskTimeAndDuration === "function") onUpdateTaskTimeAndDuration(r.taskId, r.ymd, r.start0, clamped);
+      return;
+    }
+  }
+
+  function endResize(e) {
+    if (!resizeRef.current.active) return;
+    resizeRef.current.active = false;
+    resizeRef.current.kind = "";
+    resizeRef.current.taskId = "";
+    resizeRef.current.ymd = "";
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+  }
+
+  React.useEffect(() => {
+    function onMove(e) { moveResize(e); }
+    function onUp(e) { endResize(e); }
+    if (!resizeRef.current.active) return;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [onUpdateTaskTimeAndDuration]);
+
+  function onDropOnGrid(e) {
+    e.preventDefault();
+    if (typeof onScheduleTask !== "function") return;
+    let payload = null;
+    try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {}
+    const taskId = String(payload?.taskId || "");
+    if (!taskId) return;
+
+    const surface = e.currentTarget;
+    const rect = surface.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const colW = rect.width / Math.max(1, cols.length);
+    const colIdx = Math.max(0, Math.min(cols.length - 1, Math.floor(x / Math.max(1, colW))));
+    const targetDay = cols[colIdx];
+    const targetYmd = isoYmd(targetDay);
+
+    const mins = snapTo15((y / 64) * 60);
+    onScheduleTask(taskId, targetYmd, mins);
+    setDragGhost(null);
+  }
+
+  function onDragLeaveGrid(e) { setDragGhost(null); }
+
+  function onDragOverGrid(e) {
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = "move"; } catch {}
+    let payload = null;
+    try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {}
+    const taskId = String(payload?.taskId || "");
+    if (!taskId) { if (dragGhost) setDragGhost(null); return; }
+    const surface = e.currentTarget;
+    const rect = surface.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const colW = rect.width / Math.max(1, cols.length);
+    const colIdx = Math.max(0, Math.min(cols.length - 1, Math.floor(x / Math.max(1, colW))));
+    const targetDay = cols[colIdx];
+    const targetYmd = isoYmd(targetDay);
+    const startMins = snapTo15((y / 64) * 60);
+    const dur = clampDur(Number(payload?.durationMins || 60));
+    const leftPct = (colIdx / Math.max(1, cols.length)) * 100;
+    const widthPct = (1 / Math.max(1, cols.length)) * 100;
+    const topPx = (startMins / 60) * 64;
+    const heightPx = (dur / 60) * 64;
+    if (ghostRafRef.current) cancelAnimationFrame(ghostRafRef.current);
+    ghostRafRef.current = requestAnimationFrame(() => { setDragGhost({ taskId, ymd: targetYmd, startMins, durationMins: dur, leftPct, widthPct, topPx, heightPx }); });
+  }
+
+  const timedBlocks = useMemo(() => {
+    const out = [];
+    const colCount = Math.max(1, cols.length);
+    for (let c = 0; c < cols.length; c++) {
+      const d = cols[c];
+      const arr = tasksForDay(d);
+      const { timed } = splitAllDayAndTimed(arr);
+      const leftPct = (c / colCount) * 100;
+      const widthPct = (1 / colCount) * 100;
+      for (let i = 0; i < timed.length; i++) {
+        const t = timed[i];
+        const topPx = ((Number(t.timeMins || 0) / 60) * 64);
+        const dur = Math.max(15, Math.min(24 * 60, Number(t.durationMins || 60)));
+        const heightPx = ((dur / 60) * 64);
+        out.push({ key: `${isoYmd(d)}_${t.id}_${i}`, taskId: String(t.id), ymd: isoYmd(d), name: t.name, isComplete: t.isComplete, leftPct, widthPct, topPx, heightPx, startMins: Number(t.timeMins || 0), durationMins: dur });
+      }
+    }
+    return out;
+  }, [cols, tasksByDate]);
 
   return (
     <div className="calTimeInner">
@@ -120,6 +260,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
           })}
         </div>
       </div>
+
       <div className="calAllDayRow">
         <div className="calAllDayGutter">All-day</div>
         <div className="calAllDayCols" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>
@@ -128,9 +269,16 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
             const { allDay } = splitAllDayAndTimed(all);
             const key = isoYmd(d);
             return (
-              <div key={key} className="calAllDayCell">
-                {allDay.slice(0, 6).map((t, idx) => (<div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
-                {allDay.length > 6 ? (<div className="calAllDayMore">+{allDay.length - 6} more</div>) : null}
+              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; let payload = null; try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {} const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); }}>
+                {allDay.slice(0, 12).map((t, idx) => (
+                  <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
+                    <div className="calTaskRow">
+                      <div className="calTaskName">{t.name}</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} aria-label="Drag to move">≡</div>
+                    </div>
+                  </div>
+                ))}
+                {allDay.length > 12 ? (<div className="calAllDayMore">+{allDay.length - 12} more</div>) : null}
               </div>
             );
           })}
@@ -144,10 +292,29 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate }) {
         </div>
 
         <div className="calTimeGridArea">
-          <div className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>
+          <div className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }} onDragOver={onDragOverGrid} onDragLeave={onDragLeaveGrid} onDrop={onDropOnGrid}>
             {showNowLine ? <div className="calNowLine" style={{ top: `${nowTopPx}px` }} /> : null}
             {Array.from({ length: 24 }).map((_, h) => (<div key={h} className="calTimeRow"><div className="calTimeHourLine" /><div className="calTimeHalfLine" /></div>))}
             {showVertical ? (<>{Array.from({ length: cols.length - 1 }).map((_, i) => (<div key={i} className="calTimeVLine" style={{ left: `${((i + 1) / cols.length) * 100}%` }} />))}</>) : null}
+            {dragGhost ? (<div className="calTimedGhost" style={{ position: "absolute", left: `${dragGhost.leftPct}%`, width: `${dragGhost.widthPct}%`, top: `${dragGhost.topPx}px`, height: `${dragGhost.heightPx}px`, pointerEvents: "none" }} />) : null}
+            {timedBlocks.map((b) => {
+              const selKey = `${b.ymd}:${b.taskId}`;
+              const isSel = selectedTask === selKey;
+              const isHover = hoverTask === selKey;
+              const showHandles = isSel || isHover;
+              return (
+                <div key={b.key} className={`calTimedTaskWrap ${isSel ? "calTimedTaskWrapSelected" : ""}`} style={{ position: "absolute", left: `${b.leftPct}%`, width: `${b.widthPct}%`, top: `${b.topPx}px`, height: `${b.heightPx}px`, padding: "0px", boxSizing: "border-box", pointerEvents: "auto" }} onClick={(e) => { e.stopPropagation(); setSelectedTask(selKey); }} onMouseEnter={() => setHoverTask(selKey)} onMouseLeave={() => setHoverTask((v) => (v === selKey ? null : v))}>
+                  <div className={`calTimedTask ${b.isComplete ? "calTimedTaskDone" : ""}`} style={{ height: "100%", padding: "6px 8px", boxSizing: "border-box" }}>
+                    {showHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
+                    <div className="calTimedTaskRow">
+                      <div className="calTimedTaskName">{b.name}</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} aria-label="Drag to move">≡</div>
+                    </div>
+                    {showHandles ? (<div className="calResizeHandle calResizeHandleBottom" onPointerDown={(e) => beginResize(e, "bottom", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag down to extend later">▼</div>) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -172,6 +339,71 @@ export default function CalendarPage() {
   const tasksByDate = useMemo(() => buildTasksByDate(dataObj), [dataObj]);
 
   useEffect(() => { console.log("Calendar dataObj keys:", dataObj ? Object.keys(dataObj) : null); console.log("Calendar tasksByDate sample:", tasksByDate); }, [dataObj, tasksByDate]);
+
+  function updateTaskTimeAndDuration(taskId, targetYmd, startMins, durationMins) {
+    const start = Math.max(0, Math.min(1439, Math.floor(Number(startMins) || 0)));
+    const dur = Math.max(15, Math.min(24 * 60, Math.floor(Number(durationMins) || 60)));
+    const hh = Math.floor(start / 60);
+    const mm = start % 60;
+    const hhmm = `${pad2(hh)}:${pad2(mm)}`;
+    setDataObj((prev) => {
+      const base = (prev && typeof prev === "object") ? { ...prev } : {};
+      const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+      let changed = false;
+      for (const k of keys) {
+        const arr0 = Array.isArray(base[k]) ? base[k] : [];
+        const arr1 = arr0.map((t) => {
+          if (!t || typeof t !== "object") return t;
+          if (String(t.id || "") !== String(taskId)) return t;
+          const t1 = { ...t };
+          t1.due_date = String(targetYmd || t1.due_date || "").slice(0, 10);
+          t1.time = hhmm;
+          t1.duration_mins = dur;
+          changed = true;
+          return t1;
+        });
+        if (arr1 !== arr0) base[k] = arr1;
+      }
+      if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
+      return base;
+    });
+  }
+
+  function scheduleTaskAtMinutes(taskId, targetYmd, startMins) {
+    const ymd = String(targetYmd || "").slice(0, 10);
+    const start = Math.max(0, Math.min(1439, Math.floor(Number(startMins) || 0)));
+    const existing = (tasksByDate?.[ymd] || []).find((x) => String(x.id) === String(taskId));
+    const dur = Number(existing?.durationMins || 60);
+    updateTaskTimeAndDuration(taskId, ymd, start, dur);
+  }
+
+  function unscheduleTaskToAllDay(taskId, targetYmd) {
+    const ymd = String(targetYmd || "").slice(0, 10);
+    setDataObj((prev) => {
+      const base = (prev && typeof prev === "object") ? { ...prev } : {};
+      const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+      let changed = false;
+      for (const k of keys) {
+        const arr0 = Array.isArray(base[k]) ? base[k] : [];
+        const arr1 = arr0.map((t) => {
+          if (!t || typeof t !== "object") return t;
+          if (String(t.id || "") !== String(taskId)) return t;
+          const t1 = { ...t };
+          t1.due_date = ymd || String(t1.due_date || "").slice(0, 10);
+          t1.time = "";
+          t1.due_time = "";
+          t1.start_time = "";
+          t1.scheduled_time = "";
+          changed = true;
+          return t1;
+        });
+        if (arr1 !== arr0) base[k] = arr1;
+      }
+      if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
+      return base;
+    });
+  }
+
 
   useEffect(() => {
     let alive = true;
@@ -492,14 +724,26 @@ export default function CalendarPage() {
           {anim ? (
             <div className="calAnimStage">
               <div className="calAnimPane" style={fromPaneStyle}>
-                {anim.fromSnap.view === "month" ? (<MonthInner snapSelected={anim.fromSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.fromSnap.anchorDate)} />) : (<TimeGridInner view={anim.fromSnap.view} selectedDate={anim.fromSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} />)}
+                {anim.fromSnap.view === "month" ? (
+                  <MonthInner snapSelected={anim.fromSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.fromSnap.anchorDate)} />
+                ) : (
+                  <TimeGridInner view={anim.fromSnap.view} selectedDate={anim.fromSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} onScheduleTask={scheduleTaskAtMinutes} onUnscheduleTask={unscheduleTaskToAllDay} onUpdateTaskTimeAndDuration={updateTaskTimeAndDuration} />
+                )}
               </div>
               <div className="calAnimPane" style={toPaneStyle} onTransitionEnd={onAnimTransitionEnd}>
-                {anim.toSnap.view === "month" ? (<MonthInner snapSelected={anim.toSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.toSnap.anchorDate)} />) : (<TimeGridInner view={view} selectedDate={selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} />)}
+                {anim.toSnap.view === "month" ? (
+                  <MonthInner snapSelected={anim.toSnap.selectedDate} snapVisibleMonth={startOfMonth(anim.toSnap.anchorDate)} />
+                ) : (
+                  <TimeGridInner view={anim.toSnap.view} selectedDate={anim.toSnap.selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} onScheduleTask={scheduleTaskAtMinutes} onUnscheduleTask={unscheduleTaskToAllDay} onUpdateTaskTimeAndDuration={updateTaskTimeAndDuration} />
+                )}
               </div>
             </div>
           ) : (
-            (view === "month") ? (<MonthInner snapSelected={selectedDate} snapVisibleMonth={visibleMonth} />) : (<TimeGridInner view={view} selectedDate={selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} />)
+            (view === "month") ? (
+              <MonthInner snapSelected={selectedDate} snapVisibleMonth={visibleMonth} />
+            ) : (
+              <TimeGridInner view={view} selectedDate={selectedDate} onPickDate={(d) => setSelectedDate(startOfDay(d))} tasksByDate={tasksByDate} onScheduleTask={scheduleTaskAtMinutes} onUnscheduleTask={unscheduleTaskToAllDay} onUpdateTaskTimeAndDuration={updateTaskTimeAndDuration} />
+            )
           )}
         </div>
       </div>
