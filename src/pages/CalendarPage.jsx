@@ -117,7 +117,24 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function tasksForDay(d) { const ymd = isoYmd(d); const arr = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : []; return arr; }
   function splitAllDayAndTimed(arr) { const allDay = []; const timed = []; for (const t of arr) { if (t?.timeMins == null) allDay.push(t); else timed.push(t); } return { allDay, timed }; }
 
-  function onDragStartTask(e, taskId, ymd, durationMins) { try { e.dataTransfer.setData("application/json", JSON.stringify({ taskId: String(taskId), ymd: String(ymd), durationMins: Number(durationMins || 60) })); } catch {} try { e.dataTransfer.effectAllowed = "move"; } catch {} }
+  function onDragStartTask(e, taskId, ymd, durationMins) {
+    const payload = { taskId: String(taskId), ymd: String(ymd), durationMins: Number(durationMins || 60) };
+    const raw = JSON.stringify(payload);
+    try { e.dataTransfer.effectAllowed = "move"; } catch {}
+
+    // IMPORTANT: set BOTH. Some browsers won't return custom types during dragover.
+    try { e.dataTransfer.setData("application/json", raw); } catch {}
+    try { e.dataTransfer.setData("text/plain", raw); } catch {}
+  }
+
+  function readDragPayload(dt) {
+    if (!dt) return null;
+    let raw = "";
+    try { raw = dt.getData("application/json") || ""; } catch {}
+    if (!raw) { try { raw = dt.getData("text/plain") || ""; } catch {} }
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
 
   function snapTo15(mins) { const m = Math.max(0, Math.min(1439, Math.floor(Number(mins) || 0))); return Math.round(m / 15) * 15; }
   function snapDelta15(mins) { const m = Math.round(Number(mins) || 0); return Math.round(m / 15) * 15; }
@@ -181,8 +198,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function onDropOnGrid(e) {
     e.preventDefault();
     if (typeof onScheduleTask !== "function") return;
-    let payload = null;
-    try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {}
+    const payload = readDragPayload(e.dataTransfer);
     const taskId = String(payload?.taskId || "");
     if (!taskId) return;
 
@@ -206,8 +222,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   function onDragOverGrid(e) {
     e.preventDefault();
     try { e.dataTransfer.dropEffect = "move"; } catch {}
-    let payload = null;
-    try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {}
+    const payload = readDragPayload(e.dataTransfer);
     const taskId = String(payload?.taskId || "");
     if (!taskId) { if (dragGhost) setDragGhost(null); return; }
     const surface = e.currentTarget;
@@ -274,7 +289,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
             const { allDay } = splitAllDayAndTimed(all);
             const key = isoYmd(d);
             return (
-              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; let payload = null; try { payload = JSON.parse(e.dataTransfer.getData("application/json") || ""); } catch {} const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); }}>
+              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer);const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); }}>
                 {allDay.slice(0, 12).map((t, idx) => (
                   <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
                     <div className="calTaskRow">

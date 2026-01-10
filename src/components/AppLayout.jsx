@@ -10,7 +10,26 @@ function routeIndex(pathname, routes) { const p = normalizePath(pathname); const
 
 function ensureDataShape(obj) {
   const o = (obj && typeof obj === "object") ? { ...obj } : {};
-  if (!Number.isFinite(Number(o.spoons))) o.spoons = 0;
+
+  // Accept legacy/alternate fields and converge to o.spoons
+  const candidates = [
+    o.spoons,
+    o.spoons_count,
+    o.spoonsCount,
+    o.spoonsRemaining,
+    o.spoons_remaining,
+    o.current_spoons,
+    o.currentSpoons
+  ];
+
+  let found = null;
+  for (const v of candidates) {
+    const n = Number(v);
+    if (Number.isFinite(n)) { found = n; break; }
+  }
+
+  o.spoons = Math.max(0, Math.floor(Number(found ?? 0) || 0));
+
   if (!o.rest_spoons || typeof o.rest_spoons !== "object") o.rest_spoons = { short: 1, half: 2, full: 3 };
   return o;
 }

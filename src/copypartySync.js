@@ -16,33 +16,62 @@ function nowMs() { return Date.now(); }
 
 function safeParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
 
-export function loadCachedData() {
-  // 1) canonical
-  const raw0 = localStorage.getItem(LS_DATA_KEY);
-  const j0 = raw0 ? safeParse(raw0) : null;
-  if (j0 && typeof j0 === "object") return j0;
+function normalizeDataObj(obj) {
+  const o = (obj && typeof obj === "object") ? { ...obj } : {};
 
-  // 2) legacy fallback + migrate forward
-  for (const k of LEGACY_DATA_KEYS) {
-    const raw = localStorage.getItem(k);
-    const j = raw ? safeParse(raw) : null;
-    if (j && typeof j === "object") {
-      try { localStorage.setItem(LS_DATA_KEY, JSON.stringify(j)); } catch {}
-      return j;
-    }
+  // normalize spoons to o.spoons (accept legacy keys)
+  const candidates = [
+    o.spoons,
+    o.spoons_count,
+    o.spoonsCount,
+    o.spoonsRemaining,
+    o.spoons_remaining,
+    o.current_spoons,
+    o.currentSpoons
+  ];
+
+  let found = null;
+  for (const v of candidates) {
+    const n = Number(v);
+    if (Number.isFinite(n)) { found = n; break; }
   }
+  o.spoons = Math.max(0, Math.floor(Number(found ?? 0) || 0));
 
+  return o;
+}
+
+export function loadCachedData() {
+  const keys = [LS_DATA_KEY, ...LEGACY_DATA_KEYS];
+  for (const k of keys) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const j = safeParse(raw);
+      if (j && typeof j === "object") {
+        const norm = normalizeDataObj(j);
+
+        // converge to canonical key (and normalized shape)
+        if (k !== LS_DATA_KEY || JSON.stringify(norm) !== JSON.stringify(j)) {
+            try { localStorage.setItem(LS_DATA_KEY, JSON.stringify(norm)); } catch {}
+        }
+
+        return norm;
+        }
+    } catch {}
+  }
   return null;
 }
 
 export function saveCachedData(dataObj) {
   const obj = (dataObj && typeof dataObj === "object") ? dataObj : {};
-  localStorage.setItem(LS_DATA_KEY, JSON.stringify(obj));
-  localStorage.setItem(LS_LAST_CHANGE_KEY, String(nowMs()));
-  localStorage.setItem(LS_DIRTY_KEY, "1");
+  const raw = JSON.stringify(obj);
 
-  // Optional: keep legacy key around for one version so older code still sees it
-  try { localStorage.setItem("spoonsDataCache", JSON.stringify(obj)); } catch {}
+  try { localStorage.setItem(LS_DATA_KEY, raw); } catch {}
+  try { localStorage.setItem(LS_LAST_CHANGE_KEY, String(nowMs())); } catch {}
+  try { localStorage.setItem(LS_DIRTY_KEY, "1"); } catch {}
+
+  // Optional: keep ONE legacy key for a version so older code still sees it
+  try { localStorage.setItem("spoonsDataCache", raw); } catch {}
 }
 
 export function markClean() {

@@ -707,4 +707,4 @@ html[data-theme="dark"] {
 .calResizeHandleTop { top: -9px; }
 .calResizeHandleBottom { bottom: -9px; }
 
-.calTimedGhost { border: 2px dashed rgba(255,255,255,0.55); background: rgba(255,255,255,0.12); border-radius: 10px; }
+.calTimedGhost { border: 2px dashed rgba(255,255,255,0.55); background: rgba(255,255,255,0.12); border-radius: 10px; z-index: 20; }
