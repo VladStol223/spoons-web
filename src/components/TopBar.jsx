@@ -58,7 +58,7 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
             inputMode="numeric"
             aria-label="Spoons count"
             style={{
-              width: 25,
+              width: 28,
               padding: 0,
               margin: 0,
               border: "none",
@@ -74,8 +74,8 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
           />
 
           <div className="spoonsIcons" aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-            <div style={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "nowrap" }}>{row1}</div>
-            <div style={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "nowrap" }}>{row2}</div>
+            <div style={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "nowrap" }}>{row1}</div>
+            <div style={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "nowrap" }}>{row2}</div>
           </div>
         </div>
 
