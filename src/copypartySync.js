@@ -1,7 +1,12 @@
 // src/copypartySync.js
 import { uploadEncryptedDataJson } from "./copypartyData";
 
-const LS_DATA_KEY = "spoonsDataCache";
+// Canonical cache key used everywhere
+const LS_DATA_KEY = "spoons_data_cache";
+
+// Legacy keys we may have used previously (read-only fallback)
+const LEGACY_DATA_KEYS = ["spoonsDataCache", "spoons_data_json", "data.json", "spoonsData", "spoons_data"];
+
 const LS_DIRTY_KEY = "spoonsDataDirty";
 const LS_LAST_SYNC_KEY = "spoonsDataLastSyncAt";
 const LS_LAST_CHANGE_KEY = "spoonsDataLastChangeAt";
@@ -9,14 +14,35 @@ const LS_LAST_ERR_KEY = "spoonsDataLastSyncError";
 
 function nowMs() { return Date.now(); }
 
+function safeParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+
 export function loadCachedData() {
-  try { const raw = localStorage.getItem(LS_DATA_KEY); if (!raw) return null; return JSON.parse(raw); } catch { return null; }
+  // 1) canonical
+  const raw0 = localStorage.getItem(LS_DATA_KEY);
+  const j0 = raw0 ? safeParse(raw0) : null;
+  if (j0 && typeof j0 === "object") return j0;
+
+  // 2) legacy fallback + migrate forward
+  for (const k of LEGACY_DATA_KEYS) {
+    const raw = localStorage.getItem(k);
+    const j = raw ? safeParse(raw) : null;
+    if (j && typeof j === "object") {
+      try { localStorage.setItem(LS_DATA_KEY, JSON.stringify(j)); } catch {}
+      return j;
+    }
+  }
+
+  return null;
 }
 
 export function saveCachedData(dataObj) {
-  localStorage.setItem(LS_DATA_KEY, JSON.stringify(dataObj ?? {}));
+  const obj = (dataObj && typeof dataObj === "object") ? dataObj : {};
+  localStorage.setItem(LS_DATA_KEY, JSON.stringify(obj));
   localStorage.setItem(LS_LAST_CHANGE_KEY, String(nowMs()));
   localStorage.setItem(LS_DIRTY_KEY, "1");
+
+  // Optional: keep legacy key around for one version so older code still sees it
+  try { localStorage.setItem("spoonsDataCache", JSON.stringify(obj)); } catch {}
 }
 
 export function markClean() {

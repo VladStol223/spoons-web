@@ -33,12 +33,17 @@ function parseTaskTimeMinutes(raw) { const s = String(raw?.time || raw?.due_time
 function parseTaskDurationMinutes(raw) { const n = Number(raw?.duration_mins ?? raw?.duration ?? ""); if (Number.isFinite(n) && n > 0) return Math.max(15, Math.min(24 * 60, Math.round(n))); const end = String(raw?.end_time || raw?.due_end || "").trim(); const start = String(raw?.time || raw?.start_time || "").trim(); const em = end.match(/^(\d{1,2}):(\d{2})/); const sm = start.match(/^(\d{1,2}):(\d{2})/); if (em && sm) { const eh = Number(em[1]), eM = Number(em[2]), sh = Number(sm[1]), sM = Number(sm[2]); const a = (sh * 60) + sM; const b = (eh * 60) + eM; const d = b - a; if (Number.isFinite(d) && d > 0) return Math.max(15, Math.min(24 * 60, Math.round(d))); } return 60; }
 
 function loadLocalDataJson() {
-  const keys = ["spoons_data_json", "data.json", "spoonsData", "spoons_data", "spoons_data_cache"];
+  // Canonical first
+  const keys = ["spoons_data_cache", "spoonsDataCache", "spoons_data_json", "data.json", "spoonsData", "spoons_data"];
   for (const k of keys) {
     const v = localStorage.getItem(k);
     if (!v) continue;
     const j = safeParseJson(v);
-    if (j && typeof j === "object") return j;
+    if (j && typeof j === "object") {
+      // Migrate forward to canonical so we converge over time
+      if (k !== "spoons_data_cache") { try { localStorage.setItem("spoons_data_cache", JSON.stringify(j)); } catch {} }
+      return j;
+    }
   }
   return null;
 }
@@ -409,28 +414,24 @@ export default function CalendarPage() {
     let alive = true;
 
     async function hydrate() {
-      // If you have a local cached copy, use it immediately (fast render),
-      // but still try to refresh from Copyparty if logged in.
-      console.log("hydrate copyparty", { base, creds: !!creds });
-
       const cached = loadLocalDataJson();
       if (cached && alive) setDataObj(cached);
 
       const creds = getStoredCopypartyCreds();
-      if (!creds) return;
-
       const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
+
+      console.log("hydrate copyparty", { base, creds: !!creds });
+
+      if (!creds) return;
       if (!base) return;
 
       try {
         const fresh = await fetchAndDecryptDataJson(base, creds.username, creds.password);
         if (!alive) return;
         setDataObj(fresh);
-        // optional: cache it so calendar works instantly next time
         try { localStorage.setItem("spoons_data_cache", JSON.stringify(fresh)); } catch {}
       } catch (e) {
-        // If fetch fails, we still show cached data (if any).
-        // Intentionally silent to avoid spamming UI while you iterate.
+        console.warn("hydrate failed", e);
       }
     }
 

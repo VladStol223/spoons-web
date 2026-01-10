@@ -47,8 +47,12 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const base = import.meta.env.VITE_COPYPARTY_BASE || "/cp";
+      const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
       const data = await fetchAndDecryptDataJson(base, u, p);
+
+      // Cache canonical so Calendar + Tasks can immediately render from local
+      try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
+
       const nextSpoons = Number.isFinite(Number(data?.spoons)) ? Number(data.spoons) : 0;
       setSpoons(nextSpoons);
       setDataLoaded(true);
