@@ -25,6 +25,38 @@ function getColumnsForView(view, selectedDate) {
   return [sun, addDays(sun, 1), addDays(sun, 2), addDays(sun, 3), addDays(sun, 4), addDays(sun, 5), addDays(sun, 6)];
 }
 
+function ensureTaskIds(dataObj) {
+  const base = (dataObj && typeof dataObj === "object") ? { ...dataObj } : {};
+  const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+  let changed = false;
+
+  function makeId() {
+    try { return crypto.randomUUID(); } catch {}
+    return `t_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+  }
+
+  for (const k of keys) {
+    const arr0 = Array.isArray(base[k]) ? base[k] : [];
+    let localChanged = false;
+
+    const arr1 = arr0.map((t) => {
+      if (!t || typeof t !== "object") return t;
+      if (String(t.id || "").trim()) return t;
+      localChanged = true;
+      changed = true;
+      return { ...t, id: makeId() };
+    });
+
+    if (localChanged) base[k] = arr1;
+  }
+
+  if (changed) {
+    try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {}
+  }
+
+  return base;
+}
+
 function safeParseJson(s) { try { return JSON.parse(s); } catch { return null; } }
 function parseDueYmd(due) { if (!due) return null; if (typeof due === "string") return due.slice(0, 10); if (due instanceof Date) return isoYmd(due); return null; }
 function isCompleteTask(t) { const need = Number(t?.spoons_needed || 0); const done = Number(t?.done || 0); return need > 0 && done >= need; }
@@ -99,6 +131,8 @@ function daysDiff(aDay, bDay) { const ms = startOfDay(bDay).getTime() - startOfD
 function clampMs(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
 function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onScheduleTask, onUnscheduleTask, onUpdateTaskTimeAndDuration }) {
+  const gridRef = useRef(null);
+  const touchDragRef = useRef({ active: false, payload: null });
   const today = useMemo(() => startOfDay(new Date()), []);
   const cols = useMemo(() => getColumnsForView(view, selectedDate), [view, selectedDate]);
   const showVertical = view !== "day";
@@ -115,6 +149,72 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   const ghostRafRef = useRef(0);
   const resizeRef = useRef({ active: false, kind: "", taskId: "", ymd: "", start0: 0, dur0: 60, y0: 0 });
 
+    function computeGhostFromClientXY(clientX, clientY, payload) {
+    const surface = gridRef.current;
+    if (!surface) return null;
+    const rect = surface.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+
+    const colW = rect.width / Math.max(1, cols.length);
+    const colIdx = Math.max(0, Math.min(cols.length - 1, Math.floor(x / Math.max(1, colW))));
+    const targetDay = cols[colIdx];
+    const targetYmd = isoYmd(targetDay);
+
+    const startMins = snapTo15((y / 64) * 60);
+    const dur = clampDur(Number(payload?.durationMins || 60));
+
+    const leftPct = (colIdx / Math.max(1, cols.length)) * 100;
+    const widthPct = (1 / Math.max(1, cols.length)) * 100;
+    const topPx = (startMins / 60) * 64;
+    const heightPx = (dur / 60) * 64;
+
+    return { taskId: String(payload.taskId), ymd: targetYmd, startMins, durationMins: dur, leftPct, widthPct, topPx, heightPx };
+  }
+
+  function beginTouchDrag(e, taskId, ymd, durationMins) {
+    if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const payload = { taskId: String(taskId), ymd: String(ymd), durationMins: Number(durationMins || 60) };
+    setDragPayloadCache(payload);
+    touchDragRef.current.active = true;
+    touchDragRef.current.payload = payload;
+
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+
+    const g0 = computeGhostFromClientXY(e.clientX, e.clientY, payload);
+    if (g0) setDragGhost(g0);
+  }
+
+  function moveTouchDrag(e) {
+    if (!touchDragRef.current.active) return;
+    const payload = touchDragRef.current.payload;
+    const g = computeGhostFromClientXY(e.clientX, e.clientY, payload);
+    if (!g) { setDragGhost(null); return; }
+    setDragGhost(g);
+  }
+
+  function endTouchDrag(e) {
+    if (!touchDragRef.current.active) return;
+    touchDragRef.current.active = false;
+
+    const payload = touchDragRef.current.payload;
+    touchDragRef.current.payload = null;
+
+    const g = computeGhostFromClientXY(e.clientX, e.clientY, payload);
+    setDragGhost(null);
+    setDragPayloadCache(null);
+
+    if (!g) return;
+    if (typeof onScheduleTask !== "function") return;
+    onScheduleTask(g.taskId, g.ymd, g.startMins);
+  }
 
   function tasksForDay(d) { const ymd = isoYmd(d); const arr = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : []; return arr; }
   function splitAllDayAndTimed(arr) { const allDay = []; const timed = []; for (const t of arr) { if (t?.timeMins == null) allDay.push(t); else timed.push(t); } return { allDay, timed }; }
@@ -183,6 +283,20 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
     resizeRef.current.ymd = "";
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
   }
+
+  React.useEffect(() => {
+    function onMove(e) { moveTouchDrag(e); }
+    function onUp(e) { endTouchDrag(e); }
+    if (!touchDragRef.current.active) return;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  });
 
   React.useEffect(() => {
     function onMove(e) { moveResize(e); }
@@ -297,7 +411,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
                   <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
                     <div className="calTaskRow">
                       <div className="calTaskName">{t.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} onDragEnd={onDragEndTask} aria-label="Drag to move">≡</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, t.id, key, t.durationMins)} aria-label="Drag to move">≡</div>
                     </div>
                   </div>
                 ))}
@@ -315,7 +429,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
         </div>
 
         <div className="calTimeGridArea">
-          <div className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }} onDragOver={onDragOverGrid} onDragLeave={onDragLeaveGrid} onDrop={onDropOnGrid}>
+          <div ref={gridRef} className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }} onDragOver={onDragOverGrid} onDragLeave={onDragLeaveGrid} onDrop={onDropOnGrid}>
             {showNowLine ? <div className="calNowLine" style={{ top: `${nowTopPx}px` }} /> : null}
             {Array.from({ length: 24 }).map((_, h) => (<div key={h} className="calTimeRow"><div className="calTimeHourLine" /><div className="calTimeHalfLine" /></div>))}
             {showVertical ? (<>{Array.from({ length: cols.length - 1 }).map((_, i) => (<div key={i} className="calTimeVLine" style={{ left: `${((i + 1) / cols.length) * 100}%` }} />))}</>) : null}
@@ -331,7 +445,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
                     {showHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
                     <div className="calTimedTaskRow">
                       <div className="calTimedTaskName">{b.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} onDragEnd={onDragEndTask} aria-label="Drag to move">≡</div>
+                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, b.taskId, b.ymd, b.durationMins)} aria-label="Drag to move">≡</div>
                     </div>
                     {showHandles ? (<div className="calResizeHandle calResizeHandleBottom" onPointerDown={(e) => beginResize(e, "bottom", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag down to extend later">▼</div>) : null}
                   </div>
@@ -433,7 +547,7 @@ export default function CalendarPage() {
 
     async function hydrate() {
       const cached = loadLocalDataJson();
-      if (cached && alive) setDataObj(cached);
+      if (cached && alive) setDataObj(ensureTaskIds(cached));
 
       const creds = getStoredCopypartyCreds();
       const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
@@ -444,8 +558,9 @@ export default function CalendarPage() {
       if (!base) return;
 
       try {
-        const fresh = await fetchAndDecryptDataJson(base, creds.username, creds.password);
+        const fresh0 = await fetchAndDecryptDataJson(base, creds.username, creds.password);
         if (!alive) return;
+        const fresh = ensureTaskIds(fresh0);
         setDataObj(fresh);
         try { localStorage.setItem("spoons_data_cache", JSON.stringify(fresh)); } catch {}
       } catch (e) {
