@@ -7,9 +7,23 @@ const AuthContext = createContext(null);
 const DEV_BYPASS = import.meta.env.VITE_DEV_AUTH_BYPASS === "true";
 const DEV_USERNAME = (import.meta.env.VITE_DEV_USERNAME || "dev").trim();
 
-function loadSavedAuth() { try { const raw = localStorage.getItem("spoonsAuth"); if (!raw) return null; const obj = JSON.parse(raw); if (!obj || !obj.username || !obj.password) return null; return obj; } catch { return null; } }
-function saveAuth(obj) { localStorage.setItem("spoonsAuth", JSON.stringify(obj)); }
-function clearAuth() { localStorage.removeItem("spoonsAuth"); }
+function loadSavedAuth() {
+  try {
+    const legacy = localStorage.getItem("spoonsAuth");
+    if (legacy) localStorage.removeItem("spoonsAuth");
+  } catch {}
+  try {
+    const raw = sessionStorage.getItem("spoonsAuth");
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || !obj.username || !obj.password) return null;
+    return obj;
+  } catch {
+    return null;
+  }
+}
+function saveAuth(obj) { try { sessionStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {} }
+function clearAuth() { try { sessionStorage.removeItem("spoonsAuth"); } catch {} }
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => {
@@ -52,6 +66,7 @@ export function AuthProvider({ children }) {
 
       // Cache canonical so Calendar + Tasks can immediately render from local
       try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
+      try { localStorage.setItem("spoons_data_cache_ts", String(Date.now())); } catch {}
 
       const nextSpoons = Number.isFinite(Number(data?.spoons)) ? Number(data.spoons) : 0;
       setSpoons(nextSpoons);
@@ -94,6 +109,8 @@ export function AuthProvider({ children }) {
   function logout() {
     if (DEV_BYPASS) return;
     clearAuth();
+    try { localStorage.removeItem("spoons_data_cache"); } catch {}
+    try { localStorage.removeItem("spoons_data_cache_ts"); } catch {}
     setAuth(null);
     setSpoons(0);
     setDataLoaded(false);

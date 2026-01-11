@@ -196,6 +196,7 @@ export default function InputTasksPage() {
     }
 
     data0[listKey] = [...data0[listKey], ...toPush];
+    data0._local_updated_at = Date.now();
     saveCachedData(data0);
 
     clearAndFocus();

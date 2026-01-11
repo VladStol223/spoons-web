@@ -87,8 +87,32 @@ function loadLocalDataJson() {
   return null;
 }
 
+function mergeDataPreferLocal(localObj, remoteObj) {
+  const local = (localObj && typeof localObj === "object") ? { ...localObj } : {};
+  const remote = (remoteObj && typeof remoteObj === "object") ? { ...remoteObj } : {};
+  const out = { ...remote, ...local };
+  const folderIds = [];
+  if (Array.isArray(out.folders) && out.folders.length) {
+    for (const f of out.folders) { const id = String(f?.id || "").trim(); if (id) folderIds.push(id); }
+  }
+  const keys = folderIds.length ? folderIds.map((id) => `folder_${id}_tasks`) : ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+  for (const k of keys) {
+    const a0 = Array.isArray(remote[k]) ? remote[k] : [];
+    const b0 = Array.isArray(local[k]) ? local[k] : [];
+    const map = new Map();
+    for (const t of a0) { const id = String(t?.id || "").trim(); if (id) map.set(id, t); }
+    for (const t of b0) { const id = String(t?.id || "").trim(); if (id) map.set(id, t); }
+    out[k] = Array.from(map.values());
+  }
+  return out;
+}
+
 function getStoredCopypartyCreds() {
-  const raw = localStorage.getItem("spoonsAuth");
+  try {
+    const legacy = localStorage.getItem("spoonsAuth");
+    if (legacy) localStorage.removeItem("spoonsAuth");
+  } catch {}
+  const raw = sessionStorage.getItem("spoonsAuth");
   const j = raw ? safeParseJson(raw) : null;
   const u = String(j?.username || j?.user || "").trim();
   const p = String(j?.password || j?.pass || "").trim();
@@ -587,8 +611,11 @@ export default function CalendarPage() {
         const fresh0 = await fetchAndDecryptWebDataJson(base, creds.username, creds.password);
         if (!alive) return;
         const fresh = ensureTaskIds(fresh0);
-        setDataObj(fresh);
-        try { localStorage.setItem("spoons_data_cache", JSON.stringify(fresh)); } catch {}
+        const cachedNow = loadLocalDataJson();
+        const merged0 = mergeDataPreferLocal(cachedNow, fresh);
+        const merged = ensureTaskIds(merged0);
+        setDataObj(merged);
+        try { localStorage.setItem("spoons_data_cache", JSON.stringify(merged)); } catch {}
       } catch (e) {
         console.warn("hydrate failed", e);
       }
