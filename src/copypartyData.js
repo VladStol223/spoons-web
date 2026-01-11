@@ -68,15 +68,7 @@ export async function fetchAndDecryptWebDataJson(baseCpPath, username, password)
 }
 
 export async function uploadEncryptedWebDataJson(baseCpPath, username, password, dataObj) {
-  // Delete existing web-data.json first, then upload new one
-  return await uploadEncryptedJsonFile(baseCpPath, username, password, WEB_DATA_FILENAME, dataObj, { deleteFirst: true });
-}
-
-// --- Desktop (optional legacy exports; web app should not call these) ---
-export async function fetchAndDecryptDataJson(baseCpPath, username, password) {
-  throw new Error('BUG: Web app attempted to read "data.json". Use fetchAndDecryptWebDataJson() (web-data.json) instead.');
-}
-
-export async function uploadEncryptedDataJson(baseCpPath, username, password, dataObj) {
-  throw new Error('BUG: Web app attempted to write "data.json". Use uploadEncryptedWebDataJson() (web-data.json) instead.');
+  // IMPORTANT: do NOT DELETE first (many proxies/Copyparty configs block DELETE).
+  // PUT will overwrite the file just fine.
+  return await uploadEncryptedJsonFile(baseCpPath, username, password, WEB_DATA_FILENAME, dataObj, { deleteFirst: false });
 }

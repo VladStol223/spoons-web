@@ -105,8 +105,8 @@ export function AuthProvider({ children }) {
     } catch (e) {
       setSpoons(0);
       setDataLoaded(false);
-      setDataError(e?.message || "Failed to load/decrypt data.json.");
-      return { ok: false, error: e?.message || "Failed to load/decrypt data.json." };
+      setDataError(e?.message || "Failed to load/decrypt web-data.json.");
+      return { ok: false, error: e?.message || "Failed to load/decrypt web-data.json." };
     }
   }
 
