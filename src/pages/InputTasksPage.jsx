@@ -39,15 +39,50 @@ function computeDueInfo(month1to12, day) {
 
 function ensureDataShape(obj) {
   const o = (obj && typeof obj === "object") ? { ...obj } : {};
-  for (let i = 1; i <= 6; i++) { const k = `folder_${i}_tasks`; if (!Array.isArray(o[k])) o[k] = []; }
+
+  // --- folders (new) ---
+  // canonical: o.folders = [{ id: "f1", name: "School" }, ...]
+  if (!Array.isArray(o.folders) || o.folders.length === 0) {
+    const names = [];
+    if (String(o.folder_one || "").trim()) names.push(String(o.folder_one).trim());
+    if (String(o.folder_two || "").trim()) names.push(String(o.folder_two).trim());
+    if (String(o.folder_three || "").trim()) names.push(String(o.folder_three).trim());
+    if (String(o.folder_four || "").trim()) names.push(String(o.folder_four).trim());
+    if (String(o.folder_five || "").trim()) names.push(String(o.folder_five).trim());
+    if (String(o.folder_six || "").trim()) names.push(String(o.folder_six).trim());
+
+    const fallback = names.length ? names : ["Folder One","Folder Two","Folder Three","Folder Four","Folder Five","Folder Six"];
+    o.folders = fallback.map((name, idx) => ({ id: `f${idx + 1}`, name }));
+  } else {
+    o.folders = o.folders.map((f, idx) => {
+      const id = String(f?.id || "").trim() || `f${idx + 1}`;
+      const name = String(f?.name || "").trim() || `Folder ${idx + 1}`;
+      return { id, name };
+    });
+  }
+
+  // --- tasks lists (dynamic) ---
+  // canonical: folder_<folderId>_tasks
+  for (const f of o.folders) {
+    const k = `folder_${f.id}_tasks`;
+    if (!Array.isArray(o[k])) o[k] = [];
+  }
+
+  // --- legacy: keep 1..6 keys populated for older UI (best-effort) ---
+  for (let i = 1; i <= 6; i++) {
+    const legacyTasksKey = `folder_${i}_tasks`;
+    if (!Array.isArray(o[legacyTasksKey])) o[legacyTasksKey] = [];
+  }
+
+  // mirror first 6 names into legacy name keys
+  const legacyNames = ["folder_one","folder_two","folder_three","folder_four","folder_five","folder_six"];
+  for (let i = 0; i < legacyNames.length; i++) {
+    if (!String(o[legacyNames[i]] || "").trim()) o[legacyNames[i]] = String(o.folders[i]?.name || `Folder ${i + 1}`);
+  }
+
   if (!Number.isFinite(Number(o.spoons))) o.spoons = 0;
   if (!o.rest_spoons || typeof o.rest_spoons !== "object") o.rest_spoons = { short: 1, half: 2, full: 3 };
   return o;
-}
-
-function folderKeyToIndex(folderKey) {
-  const map = { homework: 1, chores: 2, work: 3, misc: 4, exams: 5, projects: 6 };
-  return map[folderKey] || 1;
 }
 
 function stepTime15(hh, mm, dir) {
@@ -71,7 +106,7 @@ function parseTimeText(text, fallbackHhMm) {
 }
 
 export default function InputTasksPage() {
-  const [folder, setFolder] = useState("homework");
+  const [folderId, setFolderId] = useState("f1");
 
   const [taskName, setTaskName] = useState("");
   const [desc, setDesc] = useState("");
@@ -143,8 +178,7 @@ export default function InputTasksPage() {
     if (!validate()) return;
 
     const data0 = ensureDataShape(loadCachedData());
-    const folderIdx = folderKeyToIndex(folder);
-    const listKey = `folder_${folderIdx}_tasks`;
+    const listKey = `folder_${String(folderId || "f1")}_tasks`;
 
     const { dueYmd } = duePreview;
     const spoonsNeeded = Number(String(spoons).trim());
@@ -205,14 +239,12 @@ export default function InputTasksPage() {
     return () => window.removeEventListener("keydown", onKeyDownGlobal, true);
   }, [descriptionToggle, timeToggle, recurringToggle, taskName, spoons, timeText, monthIdx0, dayNum, howOftenDays, howLongWeeks, reps]);
 
-  const folders = [
-    { key: "homework", label: "Homework" },
-    { key: "chores", label: "Chores" },
-    { key: "work", label: "Work" },
-    { key: "misc", label: "Misc" },
-    { key: "exams", label: "Exams" },
-    { key: "projects", label: "Projects" },
-  ];
+  const dataForFolders = useMemo(() => ensureDataShape(loadCachedData()), []);
+  const folders = useMemo(() => {
+    const d = ensureDataShape(loadCachedData());
+    return Array.isArray(d.folders) ? d.folders : [];
+  }, []);
+
 
   return (
     <div className="pageWrap">
@@ -222,8 +254,8 @@ export default function InputTasksPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {folders.map((f) => (
-              <button key={f.key} type="button" onClick={() => setFolder(f.key)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: (folder === f.key) ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 700 }}>
-                {f.label}
+              <button key={f.id} type="button" onClick={() => setFolderId(f.id)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: (folderId === f.id) ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 700 }}>
+                {f.name}
               </button>
             ))}
           </div>
@@ -327,13 +359,6 @@ export default function InputTasksPage() {
               </div>
 
               <button type="button" onClick={addTask} style={{ padding: "12px 16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.14)", fontWeight: 900, minWidth: 140 }}>Add Task</button>
-            </div>
-
-            <div style={{ opacity: 0.7, fontSize: 13, marginTop: 6 }}>
-              - Enter adds task (except inside Description)<br />
-              - Tab cycles fields (Shift+Tab backwards)<br />
-              - Saved to localStorage via <code>spoonsDataCache</code> (copypartySync)<br />
-              - Marked dirty for Copyparty auto-sync
             </div>
           </div>
         </div>

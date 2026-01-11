@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchAndDecryptDataJson } from "../copypartyData";
+import { fetchAndDecryptWebDataJson } from "../copypartyData";
 
 function pad2(n) { return String(n).padStart(2, "0"); }
 function isoYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -27,7 +27,6 @@ function getColumnsForView(view, selectedDate) {
 
 function ensureTaskIds(dataObj) {
   const base = (dataObj && typeof dataObj === "object") ? { ...dataObj } : {};
-  const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
   let changed = false;
 
   function makeId() {
@@ -35,7 +34,18 @@ function ensureTaskIds(dataObj) {
     return `t_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
   }
 
-  for (const k of keys) {
+  const folderKeys = [];
+  if (Array.isArray(base.folders) && base.folders.length) {
+    for (const f of base.folders) {
+      const id = String(f?.id || "").trim();
+      if (!id) continue;
+      folderKeys.push(`folder_${id}_tasks`);
+    }
+  } else {
+    folderKeys.push("folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks");
+  }
+
+  for (const k of folderKeys) {
     const arr0 = Array.isArray(base[k]) ? base[k] : [];
     let localChanged = false;
 
@@ -50,10 +60,7 @@ function ensureTaskIds(dataObj) {
     if (localChanged) base[k] = arr1;
   }
 
-  if (changed) {
-    try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {}
-  }
-
+  if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
   return base;
 }
 
@@ -92,7 +99,19 @@ function getStoredCopypartyCreds() {
 function buildTasksByDate(dataObj) {
   const map = {};
   if (!dataObj || typeof dataObj !== "object") return map;
-  const lists = [dataObj.folder_1_tasks, dataObj.folder_2_tasks, dataObj.folder_3_tasks, dataObj.folder_4_tasks, dataObj.folder_5_tasks, dataObj.folder_6_tasks];
+
+  const lists = [];
+  if (Array.isArray(dataObj.folders) && dataObj.folders.length) {
+    for (const f of dataObj.folders) {
+      const id = String(f?.id || "").trim();
+      if (!id) continue;
+      const k = `folder_${id}_tasks`;
+      if (Array.isArray(dataObj[k])) lists.push(dataObj[k]);
+    }
+  } else {
+    lists.push(dataObj.folder_1_tasks, dataObj.folder_2_tasks, dataObj.folder_3_tasks, dataObj.folder_4_tasks, dataObj.folder_5_tasks, dataObj.folder_6_tasks);
+  }
+
   for (const lst of lists) {
     if (!Array.isArray(lst)) continue;
     for (const t of lst) {
@@ -112,6 +131,7 @@ function buildTasksByDate(dataObj) {
       map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, durationMins, raw: t });
     }
   }
+
   for (const k of Object.keys(map)) {
     map[k].sort((a, b) => {
       const aHas = Number(a.timeMins != null);
@@ -123,6 +143,7 @@ function buildTasksByDate(dataObj) {
       return Number(a.isComplete) - Number(b.isComplete);
     });
   }
+
   return map;
 }
 
@@ -485,21 +506,24 @@ export default function CalendarPage() {
     const hhmm = `${pad2(hh)}:${pad2(mm)}`;
     setDataObj((prev) => {
       const base = (prev && typeof prev === "object") ? { ...prev } : {};
-      const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+      const keys = (Array.isArray(base.folders) && base.folders.length)
+        ? base.folders.map((f) => `folder_${String(f?.id || "").trim()}_tasks`).filter(Boolean)
+        : ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
       let changed = false;
       for (const k of keys) {
         const arr0 = Array.isArray(base[k]) ? base[k] : [];
+        let localChanged = false;
         const arr1 = arr0.map((t) => {
           if (!t || typeof t !== "object") return t;
           if (String(t.id || "") !== String(taskId)) return t;
+          localChanged = true;
           const t1 = { ...t };
           t1.due_date = String(targetYmd || t1.due_date || "").slice(0, 10);
           t1.time = hhmm;
           t1.duration_mins = dur;
-          changed = true;
           return t1;
         });
-        if (arr1 !== arr0) base[k] = arr1;
+        if (localChanged) { base[k] = arr1; changed = true; }
       }
       if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
       return base;
@@ -518,29 +542,31 @@ export default function CalendarPage() {
     const ymd = String(targetYmd || "").slice(0, 10);
     setDataObj((prev) => {
       const base = (prev && typeof prev === "object") ? { ...prev } : {};
-      const keys = ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
+      const keys = (Array.isArray(base.folders) && base.folders.length)
+        ? base.folders.map((f) => `folder_${String(f?.id || "").trim()}_tasks`).filter(Boolean)
+        : ["folder_1_tasks","folder_2_tasks","folder_3_tasks","folder_4_tasks","folder_5_tasks","folder_6_tasks"];
       let changed = false;
       for (const k of keys) {
         const arr0 = Array.isArray(base[k]) ? base[k] : [];
+        let localChanged = false;
         const arr1 = arr0.map((t) => {
           if (!t || typeof t !== "object") return t;
           if (String(t.id || "") !== String(taskId)) return t;
+          localChanged = true;
           const t1 = { ...t };
           t1.due_date = ymd || String(t1.due_date || "").slice(0, 10);
           t1.time = "";
           t1.due_time = "";
           t1.start_time = "";
           t1.scheduled_time = "";
-          changed = true;
           return t1;
         });
-        if (arr1 !== arr0) base[k] = arr1;
+        if (localChanged) { base[k] = arr1; changed = true; }
       }
       if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
       return base;
     });
   }
-
 
   useEffect(() => {
     let alive = true;
@@ -558,7 +584,7 @@ export default function CalendarPage() {
       if (!base) return;
 
       try {
-        const fresh0 = await fetchAndDecryptDataJson(base, creds.username, creds.password);
+        const fresh0 = await fetchAndDecryptWebDataJson(base, creds.username, creds.password);
         if (!alive) return;
         const fresh = ensureTaskIds(fresh0);
         setDataObj(fresh);
@@ -830,7 +856,7 @@ export default function CalendarPage() {
         <button className="calBtn calBtnPrimary" onClick={() => nav("/tasks")} type="button">Add Task</button>
         <div className="calViewGroup">
           <button className={`calBtn ${view === "day" ? "calBtnActive" : ""}`} onClick={() => onPickView("day")} type="button">Day</button>
-          <button className={`calBtn calHideMobile ${view === "schoolWeek" ? "calBtnActive" : ""}`} onClick={() => onPickView("schoolWeek")} type="button">School Week</button>
+          <button className={`calBtn calHideMobile ${view === "schoolWeek" ? "calBtnActive" : ""}`} onClick={() => onPickView("schoolWeek")} type="button">Work Week</button>
           <button className={`calBtn calHideMobile ${view === "week" ? "calBtnActive" : ""}`} onClick={() => onPickView("week")} type="button">Week</button>
           <button className={`calBtn ${view === "month" ? "calBtnActive" : ""}`} onClick={() => onPickView("month")} type="button">Month</button>
         </div>

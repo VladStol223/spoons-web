@@ -1,5 +1,5 @@
 // src/copypartySync.js
-import { uploadEncryptedDataJson } from "./copypartyData";
+import { uploadEncryptedWebDataJson } from "./copypartyData";
 
 // Canonical cache key used everywhere
 const LS_DATA_KEY = "spoons_data_cache";
@@ -100,7 +100,7 @@ export async function syncUploadOnce({ baseCpPath, username, password, getDataOb
   if (!dataObj) return { ok: false, error: "No data object to upload." };
 
   try {
-    await uploadEncryptedDataJson(baseCpPath, username, password, dataObj);
+    await uploadEncryptedWebDataJson(baseCpPath, username, password, dataObj);
     markClean();
     return { ok: true };
   } catch (e) {
