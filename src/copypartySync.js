@@ -5,7 +5,7 @@ import { uploadEncryptedWebDataJson } from "./copypartyData";
 const LS_DATA_KEY = "spoons_data_cache";
 
 // Legacy keys we may have used previously (read-only fallback)
-const LEGACY_DATA_KEYS = ["spoonsDataCache", "spoons_data_json", "data.json", "spoonsData", "spoons_data"];
+const LEGACY_DATA_KEYS = ["spoonsDataCache", "spoons_data_json", "spoonsData", "spoons_data"];
 
 const LS_DIRTY_KEY = "spoonsDataDirty";
 const LS_LAST_SYNC_KEY = "spoonsDataLastSyncAt";

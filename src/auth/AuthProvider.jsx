@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { copypartyVerifyLogin } from "../copypartyApi";
-import { fetchAndDecryptDataJson } from "../copypartyData";
+import { fetchAndDecryptWebDataJson } from "../copypartyData";
 import { forceUploadCachedData } from "../copypartySync";
 
 const AuthContext = createContext(null);
@@ -88,7 +88,7 @@ export function AuthProvider({ children }) {
 
     try {
       const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
-      const data = await fetchAndDecryptDataJson(base, u, p);
+      const data = await fetchAndDecryptWebDataJson(base, u, p);
 
       // Cache canonical so Calendar + Tasks can immediately render from local
       // IMPORTANT: go through saveCachedData so it can schedule uploads when needed

@@ -74,9 +74,9 @@ export async function uploadEncryptedWebDataJson(baseCpPath, username, password,
 
 // --- Desktop (optional legacy exports; web app should not call these) ---
 export async function fetchAndDecryptDataJson(baseCpPath, username, password) {
-  return await fetchAndDecryptJsonFile(baseCpPath, username, password, DESKTOP_DATA_FILENAME);
+  throw new Error('BUG: Web app attempted to read "data.json". Use fetchAndDecryptWebDataJson() (web-data.json) instead.');
 }
 
 export async function uploadEncryptedDataJson(baseCpPath, username, password, dataObj) {
-  return await uploadEncryptedJsonFile(baseCpPath, username, password, DESKTOP_DATA_FILENAME, dataObj, { deleteFirst: false });
+  throw new Error('BUG: Web app attempted to write "data.json". Use uploadEncryptedWebDataJson() (web-data.json) instead.');
 }
