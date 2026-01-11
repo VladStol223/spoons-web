@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAndDecryptWebDataJson } from "../copypartyData";
+import { loadCachedData, saveCachedData } from "../copypartySync";
 
 function pad2(n) { return String(n).padStart(2, "0"); }
 function isoYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -60,7 +61,7 @@ function ensureTaskIds(dataObj) {
     if (localChanged) base[k] = arr1;
   }
 
-  if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
+  if (changed) { try { saveCachedData(base); } catch {} }
   return base;
 }
 
@@ -71,21 +72,7 @@ function taskName(t) { return String(t?.task_name || "").trim(); }
 function parseTaskTimeMinutes(raw) { const s = String(raw?.time || raw?.due_time || raw?.start_time || raw?.scheduled_time || "").trim(); if (!s) return null; const m = s.match(/^(\d{1,2}):(\d{2})/); if (!m) return null; const hh = Number(m[1]); const mm = Number(m[2]); if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null; if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null; return (hh * 60) + mm; }
 function parseTaskDurationMinutes(raw) { const n = Number(raw?.duration_mins ?? raw?.duration ?? ""); if (Number.isFinite(n) && n > 0) return Math.max(15, Math.min(24 * 60, Math.round(n))); const end = String(raw?.end_time || raw?.due_end || "").trim(); const start = String(raw?.time || raw?.start_time || "").trim(); const em = end.match(/^(\d{1,2}):(\d{2})/); const sm = start.match(/^(\d{1,2}):(\d{2})/); if (em && sm) { const eh = Number(em[1]), eM = Number(em[2]), sh = Number(sm[1]), sM = Number(sm[2]); const a = (sh * 60) + sM; const b = (eh * 60) + eM; const d = b - a; if (Number.isFinite(d) && d > 0) return Math.max(15, Math.min(24 * 60, Math.round(d))); } return 60; }
 
-function loadLocalDataJson() {
-  // Canonical first
-  const keys = ["spoons_data_cache", "spoonsDataCache", "spoons_data_json", "data.json", "spoonsData", "spoons_data"];
-  for (const k of keys) {
-    const v = localStorage.getItem(k);
-    if (!v) continue;
-    const j = safeParseJson(v);
-    if (j && typeof j === "object") {
-      // Migrate forward to canonical so we converge over time
-      if (k !== "spoons_data_cache") { try { localStorage.setItem("spoons_data_cache", JSON.stringify(j)); } catch {} }
-      return j;
-    }
-  }
-  return null;
-}
+function loadLocalDataJson() { return loadCachedData(); }
 
 function mergeDataPreferLocal(localObj, remoteObj) {
   const local = (localObj && typeof localObj === "object") ? { ...localObj } : {};
@@ -549,7 +536,7 @@ export default function CalendarPage() {
         });
         if (localChanged) { base[k] = arr1; changed = true; }
       }
-      if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
+      if (changed) { try { saveCachedData(base); } catch {} }
       return base;
     });
   }
@@ -587,7 +574,7 @@ export default function CalendarPage() {
         });
         if (localChanged) { base[k] = arr1; changed = true; }
       }
-      if (changed) { try { localStorage.setItem("spoons_data_cache", JSON.stringify(base)); } catch {} }
+      if (changed) { try { saveCachedData(base); } catch {} }
       return base;
     });
   }
@@ -615,7 +602,7 @@ export default function CalendarPage() {
         const merged0 = mergeDataPreferLocal(cachedNow, fresh);
         const merged = ensureTaskIds(merged0);
         setDataObj(merged);
-        try { localStorage.setItem("spoons_data_cache", JSON.stringify(merged)); } catch {}
+        try { saveCachedData(merged); } catch {}
       } catch (e) {
         console.warn("hydrate failed", e);
       }

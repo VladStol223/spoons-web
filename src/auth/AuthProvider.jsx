@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { copypartyVerifyLogin } from "../copypartyApi";
 import { fetchAndDecryptDataJson } from "../copypartyData";
+import { forceUploadCachedData } from "../copypartySync";
 
 const AuthContext = createContext(null);
 
@@ -42,6 +43,31 @@ export function AuthProvider({ children }) {
   const password = auth?.password || null;
   const isAuthed = !!(username && password);
 
+  useEffect(() => {
+    if (!isAuthed) return;
+
+    function onFocus() { forceUploadCachedData(); }
+    function onOnline() { forceUploadCachedData(); }
+
+    // Immediate attempt on mount (nice after login)
+    forceUploadCachedData();
+
+    // Safety net: upload every 2 minutes
+    const t = setInterval(() => { forceUploadCachedData(); }, 120000);
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onFocus);
+
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [isAuthed]);
+
+
   const authHeader = useMemo(() => {
     if (!isAuthed) return null;
     if (DEV_BYPASS) return null;
@@ -65,8 +91,12 @@ export function AuthProvider({ children }) {
       const data = await fetchAndDecryptDataJson(base, u, p);
 
       // Cache canonical so Calendar + Tasks can immediately render from local
-      try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
-      try { localStorage.setItem("spoons_data_cache_ts", String(Date.now())); } catch {}
+      // IMPORTANT: go through saveCachedData so it can schedule uploads when needed
+      try { (await import("../copypartySync")).saveCachedData(data ?? {}); } catch {
+        try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
+        try { localStorage.setItem("spoons_data_cache_ts", String(Date.now())); } catch {}
+      }
+
 
       const nextSpoons = Number.isFinite(Number(data?.spoons)) ? Number(data.spoons) : 0;
       setSpoons(nextSpoons);
