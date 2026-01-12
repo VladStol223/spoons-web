@@ -308,20 +308,46 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
     const r = resizeRef.current;
     const dy = e.clientY - r.y0;
     const deltaMins = snapDelta15((dy / 64) * 60);
+    const dayEnd = 24 * 60;
+
+    function getNeighborBounds(taskId, ymd, start0, end0) {
+      const arr = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : [];
+      const timed = arr.filter((t) => t && String(t.id) !== String(taskId) && t.timeMins != null).map((t) => {
+        const s = snapTo15(t.timeMins);
+        const d = Math.max(15, snapTo15(t.durationMins || 60));
+        return { start: Math.max(0, Math.min(dayEnd, s)), end: Math.max(0, Math.min(dayEnd, s + d)) };
+      }).sort((a, b) => a.start - b.start);
+
+      let prevEnd = 0;
+      let nextStart = dayEnd;
+      for (const b of timed) {
+        if (b.end <= start0) prevEnd = Math.max(prevEnd, b.end);
+        if (b.start >= end0) { nextStart = Math.min(nextStart, b.start); break; }
+      }
+      return { prevEnd, nextStart };
+    }
+
+    const start0 = r.start0;
     const end0 = r.start0 + r.dur0;
+    const bounds = getNeighborBounds(r.taskId, r.ymd, start0, end0);
+
     if (r.kind === "top") {
-      const proposed = snapTo15(r.start0 + deltaMins);
-      const newStart = Math.max(0, Math.min(end0 - 15, proposed));
-      const newDur = clampDur(end0 - newStart);
+      const proposedStart = snapTo15(start0 + deltaMins);
+      const minStart = bounds.prevEnd;
+      const maxStart = Math.max(minStart, end0 - 15);
+      const newStart = Math.max(minStart, Math.min(maxStart, proposedStart));
+      const newDur = Math.max(15, end0 - newStart);
       if (typeof onUpdateTaskTimeAndDuration === "function") onUpdateTaskTimeAndDuration(r.taskId, r.ymd, newStart, newDur);
       return;
     }
+
     if (r.kind === "bottom") {
-      const proposed = r.dur0 + deltaMins;
-      const newDur = clampDur(proposed);
-      const maxDur = Math.max(15, (24 * 60) - r.start0);
-      const clamped = Math.min(newDur, maxDur);
-      if (typeof onUpdateTaskTimeAndDuration === "function") onUpdateTaskTimeAndDuration(r.taskId, r.ymd, r.start0, clamped);
+      const proposedEnd = snapTo15(end0 + deltaMins);
+      const minEnd = start0 + 15;
+      const maxEnd = bounds.nextStart;
+      const newEnd = Math.max(minEnd, Math.min(maxEnd, proposedEnd));
+      const newDur = Math.max(15, newEnd - start0);
+      if (typeof onUpdateTaskTimeAndDuration === "function") onUpdateTaskTimeAndDuration(r.taskId, r.ymd, start0, newDur);
       return;
     }
   }
@@ -457,7 +483,12 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
             const { allDay } = splitAllDayAndTimed(all);
             const key = isoYmd(d);
             return (
-              <div key={key} className="calAllDayCell" onDragOver={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }} onDrop={(e) => { e.preventDefault(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer) || dragPayloadCache; const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); setDragPayloadCache(null); setDragGhost(null); }}>
+              <div
+                key={key}
+                className="calAllDayCell"
+                onDragOverCapture={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }}
+                onDropCapture={(e) => { e.preventDefault(); e.stopPropagation(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer) || dragPayloadCache; const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); setDragPayloadCache(null); setDragGhost(null); }}
+              >
                 {allDay.slice(0, 12).map((t, idx) => (
                   <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
                     <div className="calTaskRow">
@@ -528,9 +559,114 @@ export default function CalendarPage() {
 
   useEffect(() => { console.log("Calendar dataObj keys:", dataObj ? Object.keys(dataObj) : null); console.log("Calendar tasksByDate sample:", tasksByDate); }, [dataObj, tasksByDate]);
 
+  function resolveTimedPlacement(taskId, ymd, desiredStartMins, desiredDurMins) {
+    const dayEnd = 24 * 60;
+    function snap15(n) { const m = Math.round(Number(n) || 0); return Math.round(m / 15) * 15; }
+    function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+    function overlapLen(a0, a1, b0, b1) { const s = Math.max(a0, b0); const e = Math.min(a1, b1); return Math.max(0, e - s); }
+    function intervalDist(g, x) { if (x < g.start) return g.start - x; if (x > g.end) return x - g.end; return 0; }
+
+    let durWanted = clamp(snap15(desiredDurMins || 60), 15, dayEnd);
+    let desiredStart = clamp(snap15(desiredStartMins), 0, dayEnd - 15);
+    let desiredEnd = clamp(desiredStart + durWanted, 0, dayEnd);
+
+    const others0 = Array.isArray(tasksByDate?.[ymd]) ? tasksByDate[ymd] : [];
+    const others = others0.filter((t) => t && String(t.id) !== String(taskId) && t.timeMins != null).map((t) => {
+      const s = clamp(snap15(t.timeMins), 0, dayEnd - 15);
+      const d = clamp(snap15(t.durationMins || 60), 15, dayEnd);
+      return { start: s, end: clamp(s + d, 0, dayEnd) };
+    }).sort((a, b) => a.start - b.start);
+
+    const free = [];
+    let cursor = 0;
+    for (const b of others) {
+      const a = clamp(b.start, 0, dayEnd);
+      const z = clamp(b.end, 0, dayEnd);
+      if (a > cursor) free.push({ start: cursor, end: a });
+      cursor = Math.max(cursor, z);
+    }
+    if (cursor < dayEnd) free.push({ start: cursor, end: dayEnd });
+
+    function fitStartIntoInterval(g, wantStart, durMins) {
+      const latest = g.end - durMins;
+      if (latest < g.start) return null;
+      let s = clamp(wantStart, g.start, latest);
+      s = snap15(s);
+      s = clamp(s, g.start, latest);
+      if ((s + durMins) > g.end) s = snap15(latest);
+      s = clamp(s, g.start, latest);
+      return s;
+    }
+
+    // 1) If full duration fits in any gap, do that (closest to desiredStart).
+    const exactCandidates = [];
+    for (const g of free) {
+      if ((g.end - g.start) < durWanted) continue;
+      const s = fitStartIntoInterval(g, desiredStart, durWanted);
+      if (s == null) continue;
+      exactCandidates.push({ start: s, dist: Math.abs(s - desiredStart) });
+    }
+    if (exactCandidates.length) {
+      exactCandidates.sort((a, b) => a.dist - b.dist);
+      const start = clamp(snap15(exactCandidates[0].start), 0, dayEnd - 15);
+      const end = clamp(start + durWanted, 0, dayEnd);
+      const dur = clamp(snap15(end - start), 15, dayEnd - start);
+      return { startMins: start, durationMins: dur };
+    }
+
+    // 2) Critical fix: pick the gap that the DRAGGED INTERVAL overlaps the most (even if it can't fit).
+    // This is what makes "task -> empty space -> task" snap INTO that middle gap instead of outside.
+    const overlapCandidates = [];
+    for (const g of free) {
+      const glen = g.end - g.start;
+      if (glen < 15) continue;
+      const ov = overlapLen(desiredStart, desiredEnd, g.start, g.end);
+      if (ov < 1) continue;
+      overlapCandidates.push({ g, ov, dist: intervalDist(g, desiredStart) });
+    }
+    if (overlapCandidates.length) {
+      overlapCandidates.sort((a, b) => (b.ov - a.ov) || (a.dist - b.dist));
+      const g = overlapCandidates[0].g;
+      let start = desiredStart;
+      if (start < g.start) start = g.start;
+      if (start > (g.end - 15)) start = g.end - 15;
+      start = clamp(snap15(start), g.start, g.end - 15);
+      let dur = Math.min(durWanted, g.end - start);
+      dur = clamp(snap15(dur), 15, g.end - start);
+      if ((start + dur) > g.end) { start = clamp(snap15(g.end - dur), g.start, g.end - 15); }
+      dur = clamp(snap15(Math.min(dur, g.end - start)), 15, g.end - start);
+      return { startMins: clamp(start, 0, dayEnd - 15), durationMins: clamp(dur, 15, dayEnd - start) };
+    }
+
+    // 3) If no overlap (rare), choose nearest gap anyway and shrink to it.
+    const nearestCandidates = [];
+    for (const g of free) {
+      const glen = g.end - g.start;
+      if (glen < 15) continue;
+      nearestCandidates.push({ g, dist: intervalDist(g, desiredStart) });
+    }
+    if (nearestCandidates.length) {
+      nearestCandidates.sort((a, b) => a.dist - b.dist);
+      const g = nearestCandidates[0].g;
+      let start = clamp(desiredStart, g.start, g.end - 15);
+      start = clamp(snap15(start), g.start, g.end - 15);
+      let dur = Math.min(durWanted, g.end - start);
+      dur = clamp(snap15(dur), 15, g.end - start);
+      if ((start + dur) > g.end) { start = clamp(snap15(g.end - dur), g.start, g.end - 15); }
+      dur = clamp(snap15(Math.min(dur, g.end - start)), 15, g.end - start);
+      return { startMins: clamp(start, 0, dayEnd - 15), durationMins: clamp(dur, 15, dayEnd - start) };
+    }
+
+    // 4) Last resort: nothing free at all (day is completely full).
+    const fallbackStart = clamp(snap15(desiredStart), 0, dayEnd - 15);
+    return { startMins: fallbackStart, durationMins: 15 };
+  }
+
   function updateTaskTimeAndDuration(taskId, targetYmd, startMins, durationMins) {
-    const start = Math.max(0, Math.min(1439, Math.floor(Number(startMins) || 0)));
-    const dur = Math.max(15, Math.min(24 * 60, Math.floor(Number(durationMins) || 60)));
+    const ymd0 = String(targetYmd || "").slice(0, 10);
+    const placed = resolveTimedPlacement(taskId, ymd0, startMins, durationMins);
+    const start = Math.max(0, Math.min(1439, Math.floor(Number(placed.startMins) || 0)));
+    const dur = Math.max(15, Math.min(24 * 60, Math.floor(Number(placed.durationMins) || 60)));
     const hh = Math.floor(start / 60);
     const mm = start % 60;
     const hhmm = `${pad2(hh)}:${pad2(mm)}`;
@@ -548,7 +684,7 @@ export default function CalendarPage() {
           if (String(t.id || "") !== String(taskId)) return t;
           localChanged = true;
           const t1 = { ...t };
-          t1.due_date = String(targetYmd || t1.due_date || "").slice(0, 10);
+          t1.due_date = ymd0 || String(t1.due_date || "").slice(0, 10);
           t1.time = hhmm;
           t1.duration_mins = dur;
           return t1;
@@ -564,8 +700,9 @@ export default function CalendarPage() {
     const ymd = String(targetYmd || "").slice(0, 10);
     const start = Math.max(0, Math.min(1439, Math.floor(Number(startMins) || 0)));
     const existing = (tasksByDate?.[ymd] || []).find((x) => String(x.id) === String(taskId));
-    const dur = Number(existing?.durationMins || 60);
-    updateTaskTimeAndDuration(taskId, ymd, start, dur);
+    const dur0 = Number(existing?.durationMins || 60);
+    const placed = resolveTimedPlacement(taskId, ymd, start, dur0);
+    updateTaskTimeAndDuration(taskId, ymd, placed.startMins, placed.durationMins);
   }
 
   function unscheduleTaskToAllDay(taskId, targetYmd) {
@@ -781,19 +918,14 @@ export default function CalendarPage() {
             const isSelected0 = isSameDay(d, snapSelected);
             const ymd = isoYmd(d);
             const tasks = Array.isArray(tasksByDate[ymd]) ? tasksByDate[ymd] : [];
-            const maxLines = Math.max(1, Number(monthMaxLines || 3));
-            const canShowAll = tasks.length <= maxLines;
-            const normalLines = canShowAll ? tasks.slice(0, maxLines) : tasks.slice(0, Math.max(0, maxLines - 1));
-            const hidden = canShowAll ? 0 : Math.max(0, tasks.length - normalLines.length);
-            const showMoreLine = (!canShowAll && maxLines >= 2);
+            const normalLines = tasks.slice(0, 3);
 
             return (
               <button key={ymd} ref={(i === 0) ? monthCellProbeRef : null} className={`calCell calCellMonth ${inMonth ? "" : "calCellMuted"} ${isToday0 ? "calCellToday" : ""} ${isSelected0 ? "calCellSelected" : ""}`} type="button" onClick={() => setSelectedDate(startOfDay(d))} onPointerUp={() => onDayCellTap(d)}>
                 <div className="calCellNum">{d.getDate()}</div>
-                {tasks.length ? (
+                {normalLines.length ? (
                   <div className="calCellTasks">
                     {normalLines.map((t, idx) => (<div key={`${ymd}_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
-                    {showMoreLine ? (<div className="calCellMore">+{hidden} more tasks</div>) : null}
                   </div>
                 ) : null}
               </button>
