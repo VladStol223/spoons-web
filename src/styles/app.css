@@ -267,6 +267,9 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .folderDrawerOverlay { display: grid !important; place-items: end center; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 70; padding-bottom: calc(var(--hubBarH) + var(--folderBarH) + env(safe-area-inset-bottom) + 10px); }
   .folderDrawerPanel { margin-bottom: 0; }
 
+  .calTimeGridSurface { min-width: 0; } /* allow it to fit viewport */
+  .calTimeHeaderCols, .calAllDayCols, .calTimeGridSurface { width: 100%; }
+
   .sidebar {
     position: fixed;
     left: 0;
@@ -314,7 +317,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .fatigueOuter { width: 100%; max-width: none; margin: 0; }
   .topRight { grid-column: 2 / 3; grid-row: 1 / 2; justify-self: end; align-self: start; }
 
-  .contentArea { padding: 14px 12px; align-items: flex-start; }
+  .contentArea { padding: 10px 12px 6px; align-items: flex-start; }
 
   /* Rests stacked vertically */
   .restRow { grid-template-columns: 1fr; gap: 14px; }
@@ -339,6 +342,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .calMonthView { height: 100%; min-height: 0; }
   .calTimeScroll { height: 100%; min-height: 0; }
 
+  .calTaskDragHandle { opacity: 1; }
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
@@ -379,7 +383,11 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(var(--calMonthRows, 6), 1fr); gap: 8px; flex: 1; min-height: 0; align-content: stretch; }
 
-.calCell { width: 100%; height: 100%; min-height: 0; border-radius: 12px; border: 2px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.10); color: var(--text); cursor: pointer; display: flex; align-items: flex-start; justify-content: flex-start; padding: 10px; }
+.calCell { width: 100%; height: 100%; min-height: 0; border-radius: 12px; border: 2px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.10); color: var(--text); cursor: pointer; display: flex; align-items: stretch; justify-content: flex-start; padding: 10px; }
+
+.calCellMonth { flex-direction: column; }   /* IMPORTANT */
+.calCellNum { font-weight: 900; width: 100%; text-align: left; line-height: 1; }
+.calCellTasks { width: 100%; }
 
 .calCellMonth { position: relative; overflow: hidden; }
 .calCellTasks { margin-top: 6px; display: grid; gap: 4px; width: 100%; }
@@ -404,7 +412,6 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .calCell:hover { background: rgba(0,0,0,0.16); }
 .calCellMuted { opacity: 0.45; }
-.calCellNum { font-weight: 900; }
 .calCellToday { outline: 2px solid rgba(215,180,90,0.55); outline-offset: 1px; }
 .calCellSelected { outline: 2px solid rgba(255,255,255,0.75); outline-offset: 1px; }
 .calAltView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 18px; }
@@ -430,7 +437,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .calTimeHeader {
   display: grid;
-  grid-template-columns: 86px 1fr;
+  grid-template-columns: 50px 1fr;
   background: rgba(0,0,0,0.08);
   border-bottom: 2px solid rgba(0,0,0,0.18);
 }
@@ -459,10 +466,13 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 /* fixed hour height: user must scroll to see all 24 hours */
 :root { --calHourH: 64px; } /* tweak this if you want taller/shorter hours */
 
-.calTimeScroll { display: grid; grid-template-columns: 86px 1fr; height: var(--calPanelH); overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.calTimeScroll { display: grid; grid-template-columns: 50px 1fr; height: var(--calPanelH); overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 .calTimeScroll::-webkit-scrollbar { width: 0; height: 0; }
 
-.calTimeGridArea { overflow: hidden; background: rgba(0,0,0,0.02); }
+.calTimeGridArea { overflow: auto; background: rgba(0,0,0,0.02); -webkit-overflow-scrolling: touch; }
+.calTimeGridArea::-webkit-scrollbar { height: 0; width: 0; }
+
+.calTimeGridSurface { position: relative; display: grid; grid-auto-rows: var(--calHourH); min-width: 780px; }
 
 .calNowLine { position: absolute; left: 0; right: 0; height: 2px; background: #d63a3a; z-index: 5; pointer-events: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.25); }
 
@@ -487,12 +497,12 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calTimeTickLabel {
   position: absolute;
   top: 8px;
-  right: 10px;
+  right: 6px;
   font-weight: 900;
-  font-size: 12px;
+  font-size: 11px;
   opacity: 0.9;
+  white-space: nowrap;
 }
-
 
 
 /* a single surface that holds all horizontal + vertical lines */
@@ -507,7 +517,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calCellTaskLine { font-size: 12px; font-weight: 900; line-height: 14px; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .calCellMore { font-size: 12px; font-weight: 1000; line-height: 14px; opacity: 0.85; text-align: left; }
 
-.calAllDayRow { display: grid; grid-template-columns: 86px 1fr; background: rgba(0,0,0,0.06); border-bottom: 2px solid rgba(0,0,0,0.18); }
+.calAllDayRow { display: grid; grid-template-columns: 50px 1fr; background: rgba(0,0,0,0.06); border-bottom: 2px solid rgba(0,0,0,0.18); }
 .calAllDayGutter { padding: 10px; border-right: 2px solid rgba(0,0,0,0.18); font-weight: 1000; font-size: 12px; opacity: 0.9; }
 .calAllDayCols { display: grid; }
 .calAllDayCell { min-height: 56px; padding: 8px 10px; border-right: 2px solid rgba(255,255,255,0.06); display: grid; gap: 4px; align-content: start; }
@@ -768,3 +778,6 @@ html[data-theme="dark"] {
 .calResizeHandleBottom { bottom: -9px; }
 
 .calTimedGhost { border: 2px dashed rgba(255,255,255,0.55); background: rgba(255,255,255,0.12); border-radius: 10px; z-index: 20; }
+
+.calTimedTaskWrap { overflow: visible; }
+.calTimedTask { overflow: visible; }

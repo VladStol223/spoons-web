@@ -107,9 +107,6 @@ export default function AppLayout() {
     if (absX < 60) return;
     if (absX < (absY * 1.2)) return;
 
-    const idx = routeIndex(location.pathname, HUB_ROUTES);
-    if (dx < 0) { const next = HUB_ROUTES[Math.min(idx + 1, HUB_ROUTES.length - 1)]; if (next !== normalizePath(location.pathname)) navigate(next, { replace: true }); return; }
-    if (dx > 0) { const prev = HUB_ROUTES[Math.max(idx - 1, 0)]; if (prev !== normalizePath(location.pathname)) navigate(prev, { replace: true }); return; }
   }
 
   function broadcastCacheChange() { try { window.dispatchEvent(new Event("spoons_cache_changed")); } catch {} }

@@ -164,6 +164,9 @@ function clampMs(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
 function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onScheduleTask, onUnscheduleTask, onUpdateTaskTimeAndDuration }) {
   const gridRef = useRef(null);
+  const scrollWrapRef = useRef(null);
+  const gridAreaRef = useRef(null);
+  const lastAutoScrollKeyRef = useRef("");
   const touchDragRef = useRef({ active: false, payload: null });
   const today = useMemo(() => startOfDay(new Date()), []);
   const cols = useMemo(() => getColumnsForView(view, selectedDate), [view, selectedDate]);
@@ -172,6 +175,22 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   React.useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   const showNowLine = useMemo(() => cols.some((d) => isSameDay(d, today)), [cols, today]);
   const nowTopPx = useMemo(() => { const n = new Date(nowTs); const mins = (n.getHours() * 60) + n.getMinutes(); return (mins / 60) * 64; }, [nowTs]);
+
+  React.useEffect(() => {
+    if (view === "month") return;
+    const key = `${view}:${cols.length}:${isoYmd(selectedDate)}`;
+    if (lastAutoScrollKeyRef.current === key) return;
+    lastAutoScrollKeyRef.current = key;
+    const n = new Date();
+    const minsNow = (n.getHours() * 60) + n.getMinutes();
+    const targetMins = Math.max(0, Math.min(1439, minsNow - 60));
+    const targetPx = (targetMins / 60) * 64;
+    const a = scrollWrapRef.current;
+    const b = gridAreaRef.current;
+    if (a) a.scrollTop = targetPx;
+    if (b) b.scrollTop = targetPx;
+  }, [view, selectedDate, cols.length]);
+
 
   const [selectedTask, setSelectedTask] = useState(null);
   const [hoverTask, setHoverTask] = useState(null);
@@ -454,13 +473,13 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
         </div>
       </div>
 
-      <div className="calTimeScroll">
+      <div className="calTimeScroll" ref={scrollWrapRef}>
         <div className="calTimeGutter calTimeGutterPos">
           {showNowLine ? (<div className="calNowPill" style={{ top: `${nowTopPx}px`, marginTop: "1px" }}>{new Date(nowTs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}<div className="calNowPillConnector" /></div>) : null}
           {Array.from({ length: 24 }).map((_, h) => (<div key={h} className="calTimeTick"><div className="calTimeTickLabel">{hourLabel(h)}</div></div>))}
         </div>
 
-        <div className="calTimeGridArea">
+        <div className="calTimeGridArea" ref={gridAreaRef}>
           <div ref={gridRef} className="calTimeGridSurface" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }} onDragOver={onDragOverGrid} onDragLeave={onDragLeaveGrid} onDrop={onDropOnGrid}>
             {showNowLine ? <div className="calNowLine" style={{ top: `${nowTopPx}px` }} /> : null}
             {Array.from({ length: 24 }).map((_, h) => (<div key={h} className="calTimeRow"><div className="calTimeHourLine" /><div className="calTimeHalfLine" /></div>))}
@@ -655,7 +674,7 @@ export default function CalendarPage() {
     const fromSnap = { view, selectedDate: startOfDay(selectedDate), anchorDate: startOfMonth(anchorDate) };
     const toSnap = { view: nextSnap.view, selectedDate: startOfDay(nextSnap.selectedDate), anchorDate: startOfMonth(nextSnap.anchorDate) };
     const durationMs = computeDurationMs(fromSnap, toSnap);
-    const dirSign = (dir === "down" ? 1 : -1);
+    const dirSign = (dir === "right" ? -1 : 1);
     setAnim({ dirSign, durationMs, fromSnap, toSnap, phase: "enter" });
     requestAnimationFrame(() => { requestAnimationFrame(() => { setAnim((a) => a ? { ...a, phase: "active" } : a); }); });
   }
@@ -674,18 +693,18 @@ export default function CalendarPage() {
       const tm = startOfMonth(today);
       if (vm.getFullYear() === tm.getFullYear() && vm.getMonth() === tm.getMonth()) { setSelectedDate(today); return; }
       const nextSnap = { view, selectedDate: today, anchorDate: startOfMonth(today) };
-      const dir = (monthsDiff(vm, tm) >= 0 ? "down" : "up");
+      const dir = (monthsDiff(vm, tm) >= 0 ? "right" : "left");
       beginAnimatedTransition(nextSnap, dir);
       return;
     }
     if (isSameDay(selectedDate, today)) return;
     const nextSnap = { view, selectedDate: today, anchorDate: startOfMonth(today) };
-    const dir = (daysDiff(selectedDate, today) >= 0 ? "down" : "up");
+    const dir = (daysDiff(selectedDate, today) >= 0 ? "right" : "left");
     beginAnimatedTransition(nextSnap, dir);
   }
 
   function shiftRangeAnimated(dirKey) {
-    const step = (dirKey === "up" ? -1 : 1);
+    const step = (dirKey === "left" ? -1 : 1);
     if (view === "day") { const nextSel = addDays(selectedDate, step); beginAnimatedTransition({ view, selectedDate: nextSel, anchorDate: startOfMonth(nextSel) }, dirKey); return; }
     if (view === "schoolWeek" || view === "week") { const nextSel = addDays(selectedDate, step * 7); beginAnimatedTransition({ view, selectedDate: nextSel, anchorDate: startOfMonth(nextSel) }, dirKey); return; }
     if (view === "month") { const nextMonth = addMonths(visibleMonth, step); const nextSel = clampDayToMonth(selectedDate, nextMonth); beginAnimatedTransition({ view, selectedDate: nextSel, anchorDate: startOfMonth(nextMonth) }, dirKey); return; }
@@ -693,13 +712,13 @@ export default function CalendarPage() {
 
   function onPickView(nextView) {
     if (nextView === view) return;
-    beginAnimatedTransition({ view: nextView, selectedDate: startOfDay(selectedDate), anchorDate: startOfMonth(selectedDate) }, "down");
+    beginAnimatedTransition({ view: nextView, selectedDate: startOfDay(selectedDate), anchorDate: startOfMonth(selectedDate) }, "right");
   }
 
   function onPickMonth(mIdx) {
     const nextMonth = new Date(visibleYear, mIdx, 1);
     const nextSel = clampDayToMonth(selectedDate, nextMonth);
-    beginAnimatedTransition({ view, selectedDate: nextSel, anchorDate: startOfMonth(nextMonth) }, (mIdx >= visibleMonthIdx ? "down" : "up"));
+    beginAnimatedTransition({ view, selectedDate: nextSel, anchorDate: startOfMonth(nextMonth) }, (mIdx >= visibleMonthIdx ? "right" : "left"));
     setMonthPickerOpen(false);
   }
 
@@ -829,12 +848,12 @@ export default function CalendarPage() {
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
 
-    if (ady < 60) return;
-    if (ady < (adx * 1.2)) return;
+    if (adx < 60) return;
+    if (adx < (ady * 1.2)) return;
     if (dt > 900) return;
 
-    if (dy < 0) shiftRangeAnimated("down");
-    if (dy > 0) shiftRangeAnimated("up");
+    if (dx < 0) shiftRangeAnimated("right");
+    if (dx > 0) shiftRangeAnimated("left");
   }
 
   function onAnimTransitionEnd(e) {
@@ -848,17 +867,17 @@ export default function CalendarPage() {
     if (!anim) return {};
     const dur = `${anim.durationMs}ms`;
     const ease = "cubic-bezier(0.20, 0.80, 0.20, 1.00)";
-    const ty = (anim.phase === "active" ? `${anim.dirSign * -100}%` : "0%");
-    return { transition: `transform ${dur} ${ease}`, transform: `translate3d(0, ${ty}, 0)` };
+    const tx = (anim.phase === "active" ? `${anim.dirSign * 100}%` : "0%");
+    return { transition: `transform ${dur} ${ease}`, transform: `translate3d(${tx}, 0, 0)` };
   }, [anim]);
 
   const toPaneStyle = useMemo(() => {
     if (!anim) return {};
     const dur = `${anim.durationMs}ms`;
     const ease = "cubic-bezier(0.20, 0.80, 0.20, 1.00)";
-    const startY = `${anim.dirSign * 100}%`;
-    const ty = (anim.phase === "active" ? "0%" : startY);
-    return { transition: `transform ${dur} ${ease}`, transform: `translate3d(0, ${ty}, 0)` };
+    const startX = `${anim.dirSign * -100}%`;
+    const tx = (anim.phase === "active" ? "0%" : startX);
+    return { transition: `transform ${dur} ${ease}`, transform: `translate3d(${tx}, 0, 0)` };
   }, [anim]);
 
   const panelIsMonth = (view === "month");
@@ -879,8 +898,8 @@ export default function CalendarPage() {
       <div className="calSecondRow">
         <button className="calBtn" onClick={goTodayAnimated} type="button">Today</button>
         <div className="calArrowGroup">
-          <button className="calBtn calArrow" onClick={() => shiftRangeAnimated("up")} type="button" aria-label="Previous">↑</button>
-          <button className="calBtn calArrow" onClick={() => shiftRangeAnimated("down")} type="button" aria-label="Next">↓</button>
+          <button className="calBtn calArrow" onClick={() => shiftRangeAnimated("left")} type="button" aria-label="Previous">←</button>
+          <button className="calBtn calArrow" onClick={() => shiftRangeAnimated("right")} type="button" aria-label="Next">→</button>
         </div>
         <div className="calMonthPickerWrap">
           <button className="calBtn calMonthBtn" onClick={() => setMonthPickerOpen((v) => !v)} type="button">{rangeLabel}</button>
