@@ -336,10 +336,10 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   }
 
   React.useEffect(() => {
-    function onMove(e) { moveTouchDrag(e); }
+    function onMove(e) { try { e.preventDefault(); } catch {} moveTouchDrag(e); }
     function onUp(e) { endTouchDrag(e); }
     if (!touchDragRef.current.active) return;
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
@@ -350,10 +350,10 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   });
 
   React.useEffect(() => {
-    function onMove(e) { moveResize(e); }
+    function onMove(e) { try { e.preventDefault(); } catch {} moveResize(e); }
     function onUp(e) { endResize(e); }
     if (!resizeRef.current.active) return;
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
@@ -432,7 +432,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
   }, [cols, tasksByDate]);
 
   return (
-    <div className="calTimeInner">
+    <div className={`calTimeInner ${view === "day" ? "calTimeInnerDay" : ""}`}>
       <div className="calTimeHeader">
         <div className="calTimeHeaderGutter" />
         <div className="calTimeHeaderCols" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}>

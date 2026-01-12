@@ -269,6 +269,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
   .calTimeGridSurface { min-width: 0; } /* allow it to fit viewport */
   .calTimeHeaderCols, .calAllDayCols, .calTimeGridSurface { width: 100%; }
+  .calGrid { min-height: 360px; }
 
   .sidebar {
     position: fixed;
@@ -386,8 +387,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calCell { width: 100%; height: 100%; min-height: 0; border-radius: 12px; border: 2px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.10); color: var(--text); cursor: pointer; display: flex; align-items: stretch; justify-content: flex-start; padding: 10px; }
 
 .calCellMonth { flex-direction: column; }   /* IMPORTANT */
-.calCellNum { font-weight: 900; width: 100%; text-align: left; line-height: 1; }
-.calCellTasks { width: 100%; }
+.calCellNum { font-weight: 900; width: 100%; text-align: left; line-height: 1; flex: 0 0 auto; }
+.calCellTasks { width: 100%; flex: 1; min-height: 0; }
 
 .calCellMonth { position: relative; overflow: hidden; }
 .calCellTasks { margin-top: 6px; display: grid; gap: 4px; width: 100%; }
@@ -781,3 +782,8 @@ html[data-theme="dark"] {
 
 .calTimedTaskWrap { overflow: visible; }
 .calTimedTask { overflow: visible; }
+.calTimeInnerDay .calTimeGridSurface { min-width: 0; width: 100%; }
+.calTimeInnerDay .calTimeGridArea { overflow-x: hidden; }
+.calTimeInnerDay .calTimeScroll { overflow-x: hidden; }
+.calTaskDragHandle { touch-action: none; }
+.calResizeHandle { touch-action: none; }
