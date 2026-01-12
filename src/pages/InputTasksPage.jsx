@@ -98,7 +98,7 @@ function stepTime15(hh, mm, dir) {
 function parseTimeText(text, fallbackHhMm) {
   const t = String(text || "").trim();
   if (!t) return fallbackHhMm;
-  const m = t.match(/^(\d{1,2})\s*:?\s*(\d{2})?$/);
+  const m = t.match(/^(\d{1,2})\s*:?\s*(\d{2})?$/);``
   if (!m) return fallbackHhMm;
   const hh = clamp(Number(m[1]), 0, 23);
   const mm = clamp(Number(m[2] ?? 0), 0, 59);
@@ -251,7 +251,11 @@ export default function InputTasksPage() {
     <div className="pageWrap">
       <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
         <div style={{ width: 180 }}>
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>Folders</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+            <button type="button" onClick={() => setDescriptionToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: descriptionToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Description</button>
+            <button type="button" onClick={() => setTimeToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: timeToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Start Time</button>
+            <button type="button" onClick={() => setRecurringToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: recurringToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Recurring</button>
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {folders.map((f) => (
@@ -260,21 +264,14 @@ export default function InputTasksPage() {
               </button>
             ))}
           </div>
-
-          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-            <button type="button" onClick={() => setDescriptionToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: descriptionToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Description</button>
-            <button type="button" onClick={() => setTimeToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: timeToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Start Time</button>
-            <button type="button" onClick={() => setRecurringToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: recurringToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Recurring</button>
-          </div>
         </div>
 
         <div style={{ flex: 1, maxWidth: 720 }}>
-          <h1 style={{ marginTop: 0 }}>Input Tasks</h1>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
             <div>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>Task Name</div>
-              <input ref={taskRef} value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="Enter task name..." style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: flashTask ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 700 }} />
+              <div style={{ width: "33%", minWidth: 220, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Task Name</div>
+              <input ref={taskRef} value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="Enter task name..." style={{ width: "33%", minWidth: 220, padding: "12px 14px", borderRadius: 12, border: flashTask ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 700 }} />
             </div>
 
             {descriptionToggle ? (
@@ -284,31 +281,31 @@ export default function InputTasksPage() {
               </div>
             ) : null}
 
-            <div style={{ display: "grid", gridTemplateColumns: timeToggle ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, alignItems: "end" }}>
-              <div>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Month</div>
-                <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: timeToggle ? "max-content max-content max-content" : "max-content max-content", gap: 8, alignItems: "end" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 160, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Month</div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <button type="button" onClick={() => setMonthIdx0((m) => (m + 11) % 12)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>−</button>
-                  <input ref={monthRef} value={MONTHS[monthIdx0]} readOnly style={{ flex: 1, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }} />
+                  <input ref={monthRef} value={MONTHS[monthIdx0]} readOnly style={{ width: 160, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
                   <button type="button" onClick={() => setMonthIdx0((m) => (m + 1) % 12)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>+</button>
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Day</div>
-                <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 90, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Day</div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <button type="button" onClick={() => setDayNum((d) => (d <= 1 ? maxDays : d - 1))} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>−</button>
-                  <input ref={dayRef} value={String(dayNum)} readOnly style={{ flex: 1, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
+                  <input ref={dayRef} value={String(dayNum)} readOnly style={{ width: 90, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
                   <button type="button" onClick={() => setDayNum((d) => (d >= maxDays ? 1 : d + 1))} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>+</button>
                 </div>
               </div>
 
               {timeToggle ? (
-                <div>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Start Time</div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ width: 130, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Start Time</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <button type="button" onClick={() => { const parsed = parseTimeText(timeText, nowHhMm()); const next = stepTime15(parsed.hh, parsed.mm, -1); setTimeText(`${pad2(next.hh)}:${pad2(next.mm)}`); }} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>−15</button>
-                    <input ref={timeRef} value={timeText} onChange={(e) => setTimeText(e.target.value)} placeholder="HH:MM" style={{ flex: 1, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
+                    <input ref={timeRef} value={timeText} onChange={(e) => setTimeText(e.target.value)} placeholder="HH:MM" style={{ width: 130, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
                     <button type="button" onClick={() => { const parsed = parseTimeText(timeText, nowHhMm()); const next = stepTime15(parsed.hh, parsed.mm, 1); setTimeText(`${pad2(next.hh)}:${pad2(next.mm)}`); }} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>+15</button>
                   </div>
                 </div>
@@ -353,13 +350,13 @@ export default function InputTasksPage() {
               ) : null}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 10, marginTop: 4 }}>
               <div style={{ opacity: 0.9, fontWeight: 700 }}>
                 <div>{duePreview.line1}</div>
                 <div>{duePreview.line2}</div>
               </div>
 
-              <button type="button" onClick={addTask} style={{ padding: "12px 16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.14)", fontWeight: 900, minWidth: 140 }}>Add Task</button>
+              <button type="button" onClick={addTask} style={{ padding: "10px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.14)", fontWeight: 900 }}>Add Task</button>
             </div>
           </div>
         </div>
