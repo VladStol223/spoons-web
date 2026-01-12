@@ -203,9 +203,20 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   margin: 0 auto;
 }
 
+:root { --folderBarH: 66px; }
+
+.folderBarMobile { display: none; }
+
 /* --- Mobile PORTRAIT only --- */
 @media (max-width: 820px) and (orientation: portrait) {
   .appShell { padding: 0; flex-direction: column; }
+
+  .inputTasksLeft { display: none !important; }
+  .mainColumn { padding-bottom: calc(var(--hubBarH) + var(--folderBarH) + env(safe-area-inset-bottom)); }
+  .folderBarMobile { display: block !important; position: fixed; left: 0; right: 0; bottom: calc(var(--hubBarH) + env(safe-area-inset-bottom)); height: var(--folderBarH); padding: 10px 12px; background: linear-gradient(180deg, rgba(37,50,22,0.96), rgba(30,42,18,0.96)); border-top: 3px solid rgba(0,0,0,0.20); z-index: 60; }
+  .folderBarScroll::-webkit-scrollbar { height: 0; }
+  .folderDrawerOverlay { display: grid !important; place-items: end center; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 70; padding-bottom: calc(var(--hubBarH) + var(--folderBarH) + env(safe-area-inset-bottom) + 10px); }
+  .folderDrawerPanel { margin-bottom: 0; }
 
   .sidebar {
     position: fixed;

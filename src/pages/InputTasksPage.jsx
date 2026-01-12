@@ -98,15 +98,32 @@ function stepTime15(hh, mm, dir) {
 function parseTimeText(text, fallbackHhMm) {
   const t = String(text || "").trim();
   if (!t) return fallbackHhMm;
-  const m = t.match(/^(\d{1,2})\s*:?\s*(\d{2})?$/);``
+  const m = t.match(/^(\d{1,2})\s*:?\s*(\d{2})?$/);
   if (!m) return fallbackHhMm;
   const hh = clamp(Number(m[1]), 0, 23);
   const mm = clamp(Number(m[2] ?? 0), 0, 59);
   return { hh, mm };
 }
 
+function sameYmd(a, b) { return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+function monthTitle(year, monthIdx0) { return `${MONTHS[monthIdx0]} ${year}`; }
+function fmtTopLine(d) { return d.toLocaleDateString([], { weekday: "long" }) + `, ${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+function buildCalendarCells(year, monthIdx0) {
+  const first = new Date(year, monthIdx0, 1);
+  const startDow = (first.getDay() + 6) % 7; // Monday=0 ... Sunday=6
+  const days = daysInMonth(year, monthIdx0 + 1);
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push({ kind: "pad", day: null });
+  for (let d = 1; d <= days; d++) cells.push({ kind: "day", day: d });
+  while (cells.length % 7 !== 0) cells.push({ kind: "pad", day: null });
+  return cells;
+}
+
 export default function InputTasksPage() {
   const [folderId, setFolderId] = useState("f1");
+  const [folderDrawerOpen, setFolderDrawerOpen] = useState(false);
+
+  function chooseFolder(id) { setFolderId(id); setFolderDrawerOpen(false); }
 
   const [taskName, setTaskName] = useState("");
   const [desc, setDesc] = useState("");
@@ -115,6 +132,11 @@ export default function InputTasksPage() {
   const today = useMemo(() => new Date(), []);
   const [monthIdx0, setMonthIdx0] = useState(today.getMonth());
   const [dayNum, setDayNum] = useState(today.getDate());
+
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(today.getFullYear());
+  const [pickerMonthIdx0, setPickerMonthIdx0] = useState(today.getMonth());
+  const [pickerDay, setPickerDay] = useState(today.getDate());
 
   const [descriptionToggle, setDescriptionToggle] = useState(false);
   const [timeToggle, setTimeToggle] = useState(false);
@@ -135,15 +157,12 @@ export default function InputTasksPage() {
   const taskRef = useRef(null);
   const spoonsRef = useRef(null);
   const descRef = useRef(null);
-  const monthRef = useRef(null);
-  const dayRef = useRef(null);
+  const dateRef = useRef(null);
   const timeRef = useRef(null);
+
   const oftenRef = useRef(null);
   const longRef = useRef(null);
   const repsRef = useRef(null);
-
-  const maxDays = useMemo(() => daysInMonth(nowYear(), monthIdx0 + 1), [monthIdx0]);
-  useEffect(() => { setDayNum((d) => clamp(d, 1, maxDays)); }, [maxDays]);
 
   const duePreview = useMemo(() => computeDueInfo(monthIdx0 + 1, dayNum), [monthIdx0, dayNum]);
 
@@ -215,8 +234,8 @@ export default function InputTasksPage() {
       const order = [];
       order.push(taskRef);
       if (descriptionToggle) order.push(descRef);
-      order.push(monthRef);
-      order.push(dayRef);
+      order.push(dateRef);
+
       if (timeToggle) order.push(timeRef);
       order.push(spoonsRef);
       if (recurringToggle) { order.push(oftenRef, longRef, repsRef); }
@@ -249,24 +268,34 @@ export default function InputTasksPage() {
 
   return (
     <div className="pageWrap">
-      <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
-        <div style={{ width: 180 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-            <button type="button" onClick={() => setDescriptionToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: descriptionToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Description</button>
-            <button type="button" onClick={() => setTimeToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: timeToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Start Time</button>
-            <button type="button" onClick={() => setRecurringToggle((v) => !v)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: recurringToggle ? "rgba(0,255,0,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 800 }}>Recurring</button>
+      <div className="inputTasksLayout" style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
+        <div className="inputTasksLeft" style={{ width: 180 }}>
+          <div className="optEmojiRow" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12, justifyItems: "center" }}>
+            <button type="button" onClick={() => setDescriptionToggle((v) => !v)} aria-label="Toggle Description" title="Description" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: descriptionToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+              <div style={{ fontSize: 28, lineHeight: 1 }}>📝</div>
+              <div style={{ fontSize: 12, fontWeight: 950, lineHeight: 1 }}>Desc</div>
+            </button>
+            <button type="button" onClick={() => setTimeToggle((v) => !v)} aria-label="Toggle Start Time" title="Start Time" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: timeToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+              <div style={{ fontSize: 28, lineHeight: 1 }}>⏰</div>
+              <div style={{ fontSize: 12, fontWeight: 950, lineHeight: 1 }}>Time</div>
+            </button>
+            <button type="button" onClick={() => setRecurringToggle((v) => !v)} aria-label="Toggle Recurring" title="Recurring" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: recurringToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+              <div style={{ fontSize: 28, lineHeight: 1 }}>🔁</div>
+              <div style={{ fontSize: 12, fontWeight: 950, lineHeight: 1 }}>Recur</div>
+            </button>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="folderListDesktop" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {folders.map((f) => (
-              <button key={f.id} type="button" onClick={() => setFolderId(f.id)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: (folderId === f.id) ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 700 }}>
+              <button key={f.id} type="button" onClick={() => chooseFolder(f.id)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: (folderId === f.id) ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)", fontWeight: 700 }}>
                 {f.name}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ flex: 1, maxWidth: 720 }}>
+        <div className="inputTasksRight" style={{ flex: 1, maxWidth: 720 }}>
+
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
             <div>
@@ -281,23 +310,12 @@ export default function InputTasksPage() {
               </div>
             ) : null}
 
-            <div style={{ display: "grid", gridTemplateColumns: timeToggle ? "max-content max-content max-content" : "max-content max-content", gap: 8, alignItems: "end" }}>
+            <div style={{ display: "grid", gridTemplateColumns: timeToggle ? "max-content max-content" : "max-content", gap: 10, alignItems: "end" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ width: 160, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Month</div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <button type="button" onClick={() => setMonthIdx0((m) => (m + 11) % 12)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>−</button>
-                  <input ref={monthRef} value={MONTHS[monthIdx0]} readOnly style={{ width: 160, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
-                  <button type="button" onClick={() => setMonthIdx0((m) => (m + 1) % 12)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>+</button>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ width: 90, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Day</div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <button type="button" onClick={() => setDayNum((d) => (d <= 1 ? maxDays : d - 1))} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>−</button>
-                  <input ref={dayRef} value={String(dayNum)} readOnly style={{ width: 90, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
-                  <button type="button" onClick={() => setDayNum((d) => (d >= maxDays ? 1 : d + 1))} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>+</button>
-                </div>
+                <div style={{ width: 260, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Due Date</div>
+                <button ref={dateRef} type="button" onClick={() => { const y = new Date().getFullYear(); setPickerYear(y); setPickerMonthIdx0(monthIdx0); setPickerDay(dayNum); setDatePickerOpen(true); }} style={{ width: 260, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 900, textAlign: "center" }}>
+                  {MONTHS[monthIdx0]} {dayNum}
+                </button>
               </div>
 
               {timeToggle ? (
@@ -312,10 +330,53 @@ export default function InputTasksPage() {
               ) : null}
             </div>
 
+            {datePickerOpen ? (
+              <div onMouseDown={() => setDatePickerOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "grid", placeItems: "center", zIndex: 999 }}>
+                <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 340, borderRadius: 16, background: "rgba(28,34,22,0.98)", border: "1px solid rgba(255,255,255,0.16)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)", padding: 14 }}>
+                  <div style={{ fontWeight: 800, opacity: 0.85, marginBottom: 8 }}>Datepicker</div>
+
+                  <div style={{ padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontWeight: 900, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtTopLine(new Date(pickerYear, pickerMonthIdx0, pickerDay))}</div>
+                    <div style={{ opacity: 0.7, fontWeight: 1000 }}>▴</div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 40px", alignItems: "center", marginBottom: 10 }}>
+                    <button type="button" onClick={() => { const m = pickerMonthIdx0 - 1; if (m < 0) { setPickerMonthIdx0(11); setPickerYear((y) => y - 1); } else setPickerMonthIdx0(m); }} style={{ height: 38, borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontWeight: 1000 }}>‹</button>
+                    <div style={{ textAlign: "center", fontWeight: 1000 }}>{monthTitle(pickerYear, pickerMonthIdx0)}</div>
+                    <button type="button" onClick={() => { const m = pickerMonthIdx0 + 1; if (m > 11) { setPickerMonthIdx0(0); setPickerYear((y) => y + 1); } else setPickerMonthIdx0(m); }} style={{ height: 38, borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontWeight: 1000 }}>›</button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 8, opacity: 0.65, fontWeight: 900, fontSize: 12 }}>
+                    <div style={{ textAlign: "center" }}>Mo</div><div style={{ textAlign: "center" }}>Tu</div><div style={{ textAlign: "center" }}>We</div><div style={{ textAlign: "center" }}>Th</div><div style={{ textAlign: "center" }}>Fr</div><div style={{ textAlign: "center" }}>Sa</div><div style={{ textAlign: "center" }}>Su</div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 12 }}>
+                    {buildCalendarCells(pickerYear, pickerMonthIdx0).map((c, i) => {
+                      if (c.kind === "pad") return <div key={`p_${i}`} style={{ height: 38 }} />;
+                      const d = c.day;
+                      const isSel = (pickerDay === d);
+                      const isToday = sameYmd(new Date(), new Date(pickerYear, pickerMonthIdx0, d));
+                      return (
+                        <button key={`d_${d}_${i}`} type="button" onClick={() => setPickerDay(d)} style={{ height: 38, borderRadius: 10, border: isSel ? "2px solid rgba(70,140,255,0.95)" : "1px solid rgba(255,255,255,0.10)", background: isSel ? "rgba(70,140,255,0.35)" : "rgba(255,255,255,0.06)", fontWeight: 1000, color: "rgba(255,255,255,0.92)", position: "relative" }}>
+                          {d}
+                          {isToday ? <div style={{ position: "absolute", left: "50%", bottom: 6, width: 5, height: 5, borderRadius: 999, background: "rgba(255,210,80,0.95)", transform: "translateX(-50%)" }} /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <button type="button" onClick={() => setDatePickerOpen(false)} style={{ height: 42, borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontWeight: 1000 }}>Cancel</button>
+                    <button type="button" onClick={() => { setMonthIdx0(pickerMonthIdx0); setDayNum(pickerDay); setDatePickerOpen(false); }} style={{ height: 42, borderRadius: 12, border: "1px solid rgba(80,150,255,0.22)", background: "rgba(80,150,255,0.55)", fontWeight: 1100 }}>Choose Date</button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div style={{ display: "grid", gridTemplateColumns: recurringToggle ? "160px 1fr" : "160px", gap: 12, alignItems: "end" }}>
               <div>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Spoons</div>
-                <input ref={spoonsRef} value={spoons} onChange={(e) => setSpoons(e.target.value.replace(/[^\d]/g, ""))} placeholder="0" style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: flashSpoons ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
+                <input ref={spoonsRef} value={spoons} onChange={(e) => setSpoons(e.target.value.replace(/[^\d]/g, ""))} placeholder="0" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: flashSpoons ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
               </div>
 
               {recurringToggle ? (
@@ -361,6 +422,42 @@ export default function InputTasksPage() {
           </div>
         </div>
       </div>
+            <div className="folderBarMobile" style={{ display: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+          <button type="button" onClick={() => setFolderDrawerOpen((v) => !v)} aria-label="Open folders" title="Folders" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", display: "grid", justifyItems: "center", gap: 2, minWidth: 44 }}>
+            <div style={{ fontSize: 22, lineHeight: 1 }}>{folderDrawerOpen ? "▾" : "▴"}</div>
+            <div style={{ fontSize: 10, fontWeight: 1000, lineHeight: 1 }}>Folders</div>
+          </button>
+
+          <div className="folderBarScroll" style={{ display: "flex", gap: 10, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, flex: 1 }}>
+            {folders.map((f) => (
+              <button key={`mchip_${f.id}`} type="button" onClick={() => chooseFolder(f.id)} style={{ whiteSpace: "nowrap", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: (folderId === f.id) ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)", color: "rgba(255,255,255,0.95)", fontWeight: 900 }}>
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {folderDrawerOpen ? (
+        <div className="folderDrawerOverlay" onMouseDown={() => setFolderDrawerOpen(false)} style={{ display: "none" }}>
+          <div className="folderDrawerPanel" onMouseDown={(e) => e.stopPropagation()} style={{ width: "min(560px, 92vw)", borderRadius: 16, background: "rgba(20,26,12,0.98)", border: "1px solid rgba(255,255,255,0.16)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)", padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontWeight: 1100, opacity: 0.95 }}>Choose a folder</div>
+              <button type="button" onClick={() => setFolderDrawerOpen(false)} style={{ width: 40, height: 36, borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.95)", fontWeight: 1100 }}>✕</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+              {folders.map((f) => (
+                <button key={`mgrid_${f.id}`} type="button" onClick={() => chooseFolder(f.id)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.16)", background: (folderId === f.id) ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.95)", fontWeight: 1000 }}>
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }
