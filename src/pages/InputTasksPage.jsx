@@ -267,7 +267,23 @@ export default function InputTasksPage() {
 
 
   return (
-    <div className="pageWrap">
+    <div className="inputTasksRight" style={{ flex: 1, maxWidth: 720 }}>
+      <div className="inputTasksToggleBarMobile">
+        <div className="optEmojiRow optEmojiRowMobile">
+          <button type="button" onClick={() => setDescriptionToggle((v) => !v)} aria-label="Toggle Description" title="Description" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: descriptionToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+            <div style={{ fontSize: 26, lineHeight: 1 }}>📝</div>
+            <div style={{ fontSize: 11, fontWeight: 950, lineHeight: 1 }}>Desc</div>
+          </button>
+          <button type="button" onClick={() => setTimeToggle((v) => !v)} aria-label="Toggle Start Time" title="Start Time" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: timeToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+            <div style={{ fontSize: 26, lineHeight: 1 }}>⏰</div>
+            <div style={{ fontSize: 11, fontWeight: 950, lineHeight: 1 }}>Time</div>
+          </button>
+          <button type="button" onClick={() => setRecurringToggle((v) => !v)} aria-label="Toggle Recurring" title="Recurring" style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", color: "rgba(255,255,255,0.95)", opacity: recurringToggle ? 1 : 0.65, display: "grid", justifyItems: "center", gap: 4 }}>
+            <div style={{ fontSize: 26, lineHeight: 1 }}>🔁</div>
+            <div style={{ fontSize: 11, fontWeight: 950, lineHeight: 1 }}>Recur</div>
+          </button>
+        </div>
+      </div>
       <div className="inputTasksLayout" style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
         <div className="inputTasksLeft" style={{ width: 180 }}>
           <div className="optEmojiRow" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12, justifyItems: "center" }}>
@@ -297,20 +313,20 @@ export default function InputTasksPage() {
         <div className="inputTasksRight" style={{ flex: 1, maxWidth: 720 }}>
 
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-            <div>
-              <div style={{ width: "33%", minWidth: 220, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Task Name</div>
-              <input ref={taskRef} value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="Enter task name..." style={{ width: "33%", minWidth: 220, padding: "12px 14px", borderRadius: 12, border: flashTask ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 700 }} />
+          <div className="inputTasksForm" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+            <div className="itField">
+              <div className="itLabel" style={{ width: "33%", minWidth: 220, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Task Name</div>
+              <input className="itInput" ref={taskRef} value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="Enter task name..." style={{ width: "33%", minWidth: 220, padding: "12px 14px", borderRadius: 12, border: flashTask ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 700 }} />
             </div>
 
             {descriptionToggle ? (
-              <div>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
-                <textarea ref={descRef} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description..." rows={4} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 600, resize: "vertical" }} />
+              <div className="itField">
+                <div className="itLabel" style={{ fontWeight: 800, marginBottom: 6, textAlign: "center" }}>Description</div>
+                <textarea className="itTextarea" ref={descRef} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description..." rows={4} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 600, resize: "vertical" }} />
               </div>
             ) : null}
 
-            <div style={{ display: "grid", gridTemplateColumns: timeToggle ? "max-content max-content" : "max-content", gap: 10, alignItems: "end" }}>
+            <div className="itDateTimeRow" style={{ display: "grid", gridTemplateColumns: timeToggle ? "max-content max-content" : "max-content", gap: 10, alignItems: "end" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <div style={{ width: 260, textAlign: "center", fontWeight: 800, marginBottom: 6 }}>Due Date</div>
                 <button ref={dateRef} type="button" onClick={() => { const y = new Date().getFullYear(); setPickerYear(y); setPickerMonthIdx0(monthIdx0); setPickerDay(dayNum); setDatePickerOpen(true); }} style={{ width: 260, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 900, textAlign: "center" }}>
@@ -373,10 +389,10 @@ export default function InputTasksPage() {
               </div>
             ) : null}
 
-            <div style={{ display: "grid", gridTemplateColumns: recurringToggle ? "160px 1fr" : "160px", gap: 12, alignItems: "end" }}>
-              <div>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Spoons</div>
-                <input ref={spoonsRef} value={spoons} onChange={(e) => setSpoons(e.target.value.replace(/[^\d]/g, ""))} placeholder="0" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: flashSpoons ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
+            <div className="itSpoonsRow" style={{ display: "grid", gridTemplateColumns: recurringToggle ? "160px 1fr" : "160px", gap: 12, alignItems: "end" }}>
+              <div className="itField">
+                <div className="itLabel" style={{ fontWeight: 800, marginBottom: 6, textAlign: "center" }}>Spoons</div>
+                <input className="itInput" ref={spoonsRef} value={spoons} onChange={(e) => setSpoons(e.target.value.replace(/[^\d]/g, ""))} placeholder="0" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: flashSpoons ? "2px solid rgba(255,80,80,0.9)" : "1px solid rgba(255,255,255,0.18)", outline: "none", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }} />
               </div>
 
               {recurringToggle ? (
@@ -411,7 +427,7 @@ export default function InputTasksPage() {
               ) : null}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 10, marginTop: 4 }}>
+            <div className="itBottomRow" style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 10, marginTop: 4 }}>
               <div style={{ opacity: 0.9, fontWeight: 700 }}>
                 <div>{duePreview.line1}</div>
                 <div>{duePreview.line2}</div>

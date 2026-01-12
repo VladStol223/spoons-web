@@ -31,9 +31,13 @@ function ensureFoldersData(obj) {
   return o;
 }
 
+import ManageFolderTasksPage from "./ManageFolderTasksPage";
+
 export default function ManageTasksPage() {
   const [dataObj] = React.useState(() => ensureFoldersData(loadCachedData()));
   const folders = Array.isArray(dataObj?.folders) ? dataObj.folders : [];
+  const [selectedFolderId, setSelectedFolderId] = React.useState(null);
+  const selectedFolder = selectedFolderId ? folders.find((f) => String(f.id) === String(selectedFolderId)) : null;
 
   const routines = [
     { id: "morning", label: "Morning", emoji: "🌅" },
@@ -66,17 +70,17 @@ export default function ManageTasksPage() {
         <div style={{ height: 2, width: "100%", maxWidth: 720, background: "rgba(255,255,255,0.14)", borderRadius: 999 }} />
 
         {/* Folders grid (2 columns) */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 720 }}>
-          {folders.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              style={{ textAlign: "left", padding: "14px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.08)", fontWeight: 950, minHeight: 54 }}
-            >
-              {String(f.name || "").trim() || "Folder"}
-            </button>
-          ))}
-        </div>
+        {selectedFolderId ? (
+          <ManageFolderTasksPage folder={selectedFolder} folderId={selectedFolderId} onBack={() => setSelectedFolderId(null)} />
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 720 }}>
+            {folders.map((f) => (
+              <button key={f.id} type="button" onClick={() => setSelectedFolderId(f.id)} style={{ textAlign: "left", padding: "14px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.08)", fontWeight: 950, minHeight: 54 }}>
+                {String(f.name || "").trim() || "Folder"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

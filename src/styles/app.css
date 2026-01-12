@@ -203,9 +203,58 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   margin: 0 auto;
 }
 
-:root { --folderBarH: 66px; }
+:root { --folderBarH: 66px; --toggleBarH: 58px; }
 
 .folderBarMobile { display: none; }
+.inputTasksToggleBarMobile { display: none; }
+.optEmojiRowMobile { display: none; }
+
+/* InputTasks mobile centering + sizing */
+.optEmojiRowMobile { display: none; }
+
+@media (max-width: 820px) and (orientation: portrait) {
+  .mainColumn { padding-bottom: calc(var(--hubBarH) + var(--folderBarH) + var(--toggleBarH) + env(safe-area-inset-bottom)); }
+
+  .inputTasksToggleBarMobile {
+    display: block !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--hubBarH) + var(--folderBarH) + env(safe-area-inset-bottom));
+    height: var(--toggleBarH);
+    padding: 8px 12px;
+    background: linear-gradient(180deg, rgba(37,50,22,0.96), rgba(30,42,18,0.96));
+    border-top: 2px solid rgba(0,0,0,0.18);
+    z-index: 61;
+  }
+
+  .optEmojiRowMobile {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    justify-items: center;
+    margin: 0 !important;
+  }
+  .optEmojiRowMobile { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 18px; justify-items: center; margin: 6px 0 10px; }
+  .inputTasksRight { width: 100%; max-width: none !important; }
+  .inputTasksForm { justify-items: center; }
+  .itField { width: 100%; display: grid; justify-items: center; }
+  .itLabel { width: 100% !important; min-width: 0 !important; text-align: center !important; }
+  .itInput { width: min(520px, 92vw) !important; min-width: 0 !important; }
+  .itTextarea { width: min(520px, 92vw) !important; }
+  .itDateTimeRow { grid-template-columns: 1fr !important; justify-items: center; }
+  .itSpoonsRow { grid-template-columns: 1fr !important; justify-items: center; width: 100%; }
+  .itBottomRow { justify-content: center !important; flex-direction: column; align-items: center !important; gap: 12px !important; text-align: center; }
+
+  /* Make the due date button fit mobile */
+  .itDateTimeRow button[ref] { width: min(520px, 92vw) !important; } /* harmless if it doesn't match; we also handle below */
+}
+
+/* safer: target your due-date button via the inline width in the DOM container */
+@media (max-width: 820px) and (orientation: portrait) {
+  .itDateTimeRow > div > div { width: 100% !important; min-width: 0 !important; }
+  .itDateTimeRow > div button { width: min(520px, 92vw) !important; }
+}
 
 /* --- Mobile PORTRAIT only --- */
 @media (max-width: 820px) and (orientation: portrait) {
