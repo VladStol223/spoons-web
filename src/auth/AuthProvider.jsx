@@ -10,11 +10,7 @@ const DEV_USERNAME = (import.meta.env.VITE_DEV_USERNAME || "dev").trim();
 
 function loadSavedAuth() {
   try {
-    const legacy = localStorage.getItem("spoonsAuth");
-    if (legacy) localStorage.removeItem("spoonsAuth");
-  } catch {}
-  try {
-    const raw = sessionStorage.getItem("spoonsAuth");
+    const raw = sessionStorage.getItem("spoonsAuth") || localStorage.getItem("spoonsAuth");
     if (!raw) return null;
     const obj = JSON.parse(raw);
     if (!obj || !obj.username || !obj.password) return null;
@@ -23,6 +19,7 @@ function loadSavedAuth() {
     return null;
   }
 }
+
 function saveAuth(obj) {
   try { sessionStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {}
   try { localStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {}
