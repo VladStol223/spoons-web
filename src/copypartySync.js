@@ -171,7 +171,8 @@ export function saveCachedData(dataObj) {
 
   try { localStorage.setItem("spoonsDataCache", raw); } catch {}
 
-  scheduleUpload(norm);
+  latestPendingObj = norm;
+  scheduleUpload();
 }
 
 export function forceUploadCachedData() {
@@ -184,19 +185,16 @@ export function forceUploadCachedData() {
 
 // Call this ONCE at app startup (App.jsx or your auth bootstrap)
 export function initCopypartyAutoSync() {
-  // When the app backgrounds, try to flush immediately
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden" && isDirty()) forceUploadCachedData();
+    if (document.visibilityState === "hidden") flushUploadIfDirty();
   });
 
-  // iOS Safari / PWA: pagehide is more reliable than beforeunload
   window.addEventListener("pagehide", () => {
-    if (isDirty()) forceUploadCachedData();
+    flushUploadIfDirty();
   });
 
-  // If user was offline and comes back, flush
   window.addEventListener("online", () => {
-    if (isDirty()) forceUploadCachedData();
+    flushUploadIfDirty();
   });
 }
 
