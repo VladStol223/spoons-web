@@ -49,6 +49,22 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
   return (
     <header className="topBar" style={{ padding: "12px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" }}>
+          <div style={{
+            position: "fixed",
+            bottom: 6,
+            left: 6,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.7)",
+            color: "#0f0",
+            fontSize: 11,
+            padding: "6px 8px",
+            borderRadius: 6,
+            fontFamily: "monospace"
+        }}>
+            dirty: {localStorage.getItem("spoonsDataDirty")}<br/>
+            lastUp: {localStorage.getItem("spoons_last_upload_ts")}<br/>
+            err: {localStorage.getItem("spoonsDataLastSyncError") || "none"}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
           <input
             value={editText}
