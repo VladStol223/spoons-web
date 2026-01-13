@@ -64,6 +64,7 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
             dirty: {localStorage.getItem("spoonsDataDirty")}<br/>
             lastUp: {localStorage.getItem("spoons_last_upload_ts")}<br/>
             err: {localStorage.getItem("spoonsDataLastSyncError") || "none"}
+            auth: {!!sessionStorage.getItem("spoonsAuth") ? "yes" : "NO"}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
           <input

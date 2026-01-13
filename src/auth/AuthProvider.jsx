@@ -23,8 +23,15 @@ function loadSavedAuth() {
     return null;
   }
 }
-function saveAuth(obj) { try { sessionStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {} }
-function clearAuth() { try { sessionStorage.removeItem("spoonsAuth"); } catch {} }
+function saveAuth(obj) {
+  try { sessionStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {}
+  try { localStorage.setItem("spoonsAuth", JSON.stringify(obj)); } catch {}
+}
+
+function clearAuth() {
+  try { sessionStorage.removeItem("spoonsAuth"); } catch {}
+  try { localStorage.removeItem("spoonsAuth"); } catch {}
+}
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => {

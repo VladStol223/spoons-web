@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
 import TopBar from "./TopBar.jsx";
 import { useAuth } from "../auth/AuthProvider.jsx";
-import { loadCachedData, saveCachedData } from "../copypartySync";
+import { loadCachedData, saveCachedData, flushUploadIfDirty } from "../copypartySync";
 
 function normalizePath(p) { if (!p) return "/"; const x = p.split("?")[0].split("#")[0]; return x.endsWith("/") && x !== "/" ? x.slice(0, -1) : x; }
 function routeIndex(pathname, routes) { const p = normalizePath(pathname); const i = routes.indexOf(p); return i >= 0 ? i : 0; }
@@ -116,6 +116,7 @@ export default function AppLayout() {
     const gain = getRestGain(d0, kind);
     const next = Math.max(0, Math.floor(Number(d0.spoons || 0) + gain));
     saveCachedData({ ...d0, spoons: next });
+    flushUploadIfDirty();
     setSpoonsLocal(next);
     broadcastCacheChange();
   }
@@ -124,6 +125,7 @@ export default function AppLayout() {
     const n = Math.max(0, Math.floor(Number(nextSpoons) || 0));
     const d0 = ensureDataShape(loadCachedData());
     saveCachedData({ ...d0, spoons: n });
+    flushUploadIfDirty();
     setSpoonsLocal(n);
     broadcastCacheChange();
   }

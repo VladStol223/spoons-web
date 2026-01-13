@@ -46,7 +46,7 @@ function normalizeDataObj(obj) {
 
 function getCreds() {
   try {
-    const raw = sessionStorage.getItem("spoonsAuth");
+    const raw = sessionStorage.getItem("spoonsAuth") || localStorage.getItem("spoonsAuth");
     if (!raw) return null;
     const j = JSON.parse(raw);
     const u = String(j?.username || "").trim();
@@ -119,6 +119,7 @@ async function uploadNow(obj) {
   const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
   if (!creds) return { ok: false, error: "No creds in sessionStorage." };
   if (!base) return { ok: false, error: "Missing VITE_COPYPARTY_BASE." };
+  if (!creds) { setLastSyncError("No creds in storage."); return { ok: false, error: "No creds in storage." }; }
 
   try {
     await uploadEncryptedWebDataJson(base, creds.username, creds.password, obj);
