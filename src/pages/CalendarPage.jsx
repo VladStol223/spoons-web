@@ -258,10 +258,25 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
     const payload = touchDragRef.current.payload;
     touchDragRef.current.payload = null;
 
-    const g = computeGhostFromClientXY(e.clientX, e.clientY, payload);
+    function findAllDayDropYmd(clientX, clientY) {
+      try {
+        const el = document.elementFromPoint(clientX, clientY);
+        if (!el) return "";
+        const cell = el.closest ? el.closest(".calAllDayCell") : null;
+        if (!cell) return "";
+        return String(cell.getAttribute("data-ymd") || "").slice(0, 10);
+      } catch {
+        return "";
+      }
+    }
+
+    const dropYmd = findAllDayDropYmd(e.clientX, e.clientY);
     setDragGhost(null);
     setDragPayloadCache(null);
 
+    if (dropYmd && typeof onUnscheduleTask === "function") { onUnscheduleTask(String(payload?.taskId || ""), dropYmd); return; }
+
+    const g = computeGhostFromClientXY(e.clientX, e.clientY, payload);
     if (!g) return;
     if (typeof onScheduleTask !== "function") return;
     onScheduleTask(g.taskId, g.ymd, g.startMins);
@@ -486,6 +501,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, onSchedule
               <div
                 key={key}
                 className="calAllDayCell"
+                data-ymd={key}
                 onDragOverCapture={(e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch {} }}
                 onDropCapture={(e) => { e.preventDefault(); e.stopPropagation(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer) || dragPayloadCache; const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); setDragPayloadCache(null); setDragGhost(null); }}
               >
