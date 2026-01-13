@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { copypartyVerifyLogin } from "../copypartyApi";
 import { fetchAndDecryptWebDataJson } from "../copypartyData";
-import { forceUploadCachedData } from "../copypartySync";
+import { flushUploadIfDirty, hydrateCachedDataFromServer } from "../copypartySync";
 
 const AuthContext = createContext(null);
 
@@ -46,27 +46,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!isAuthed) return;
 
-    function onFocus() { forceUploadCachedData(); }
-    function onOnline() { forceUploadCachedData(); }
+    function flush() { flushUploadIfDirty(); }
+    function onVis() { if (document.visibilityState === "hidden") flush(); }
 
-    // Immediate attempt on mount (nice after login)
-    forceUploadCachedData();
-
-    // Safety net: upload every 2 minutes
-    const t = setInterval(() => { forceUploadCachedData(); }, 120000);
-
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("online", onOnline);
-    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", flush);
+    window.addEventListener("online", flush);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
 
     return () => {
-      clearInterval(t);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("online", onOnline);
-      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", flush);
+      window.removeEventListener("online", flush);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [isAuthed]);
-
 
   const authHeader = useMemo(() => {
     if (!isAuthed) return null;
@@ -92,10 +86,11 @@ export function AuthProvider({ children }) {
 
       // Cache canonical so Calendar + Tasks can immediately render from local
       // IMPORTANT: go through saveCachedData so it can schedule uploads when needed
-      try { (await import("../copypartySync")).saveCachedData(data ?? {}); } catch {
+      try { hydrateCachedDataFromServer(data ?? {}); } catch {
         try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
         try { localStorage.setItem("spoons_data_cache_ts", String(Date.now())); } catch {}
       }
+
 
 
       const nextSpoons = Number.isFinite(Number(data?.spoons)) ? Number(data.spoons) : 0;

@@ -15,6 +15,7 @@ const LS_LAST_ERR_KEY = "spoonsDataLastSyncError";
 let uploadTimer = null;
 let uploadInFlight = false;
 let uploadQueued = false;
+let latestPendingObj = null;
 
 function nowMs() { return Date.now(); }
 function safeParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
@@ -132,16 +133,23 @@ async function uploadNow(obj) {
   }
 }
 
-function scheduleUpload(obj) {
+function scheduleUpload() {
   if (uploadTimer) clearTimeout(uploadTimer);
   uploadTimer = setTimeout(async () => {
     if (uploadInFlight) { uploadQueued = true; return; }
     uploadInFlight = true;
 
-    const res = await uploadNow(obj);
+    // Always upload the most recent snapshot we know about
+    const objToUpload = latestPendingObj || loadCachedData() || {};
+    const res = await uploadNow(objToUpload);
 
     uploadInFlight = false;
-    if (uploadQueued) { uploadQueued = false; scheduleUpload(obj); }
+
+    // If changes happened during upload, run again (and it will use the newest snapshot)
+    if (uploadQueued || isDirty()) {
+      uploadQueued = false;
+      scheduleUpload();
+    }
 
     if (!res.ok) console.warn("Copyparty upload failed:", res);
   }, 800);
@@ -151,11 +159,16 @@ export function saveCachedData(dataObj) {
   const norm = normalizeDataObj(dataObj);
   const raw = JSON.stringify(norm);
 
+  let prev = "";
+  try { prev = localStorage.getItem(LS_DATA_KEY) || ""; } catch {}
+
+  // If nothing actually changed, do nothing (no dirty, no upload)
+  if (prev === raw) return;
+
   try { localStorage.setItem(LS_DATA_KEY, raw); } catch {}
   try { localStorage.setItem(LS_LAST_CHANGE_KEY, String(nowMs())); } catch {}
   try { localStorage.setItem(LS_DIRTY_KEY, "1"); } catch {}
 
-  // Optional: keep ONE legacy key for a version so older code still sees it
   try { localStorage.setItem("spoonsDataCache", raw); } catch {}
 
   scheduleUpload(norm);
@@ -164,6 +177,44 @@ export function saveCachedData(dataObj) {
 export function forceUploadCachedData() {
   const obj = loadCachedData();
   if (!obj) return Promise.resolve({ ok: false, error: "No cached data to upload." });
+  latestPendingObj = obj;
   markDirty();
   return uploadNow(obj);
+}
+
+// Call this ONCE at app startup (App.jsx or your auth bootstrap)
+export function initCopypartyAutoSync() {
+  // When the app backgrounds, try to flush immediately
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && isDirty()) forceUploadCachedData();
+  });
+
+  // iOS Safari / PWA: pagehide is more reliable than beforeunload
+  window.addEventListener("pagehide", () => {
+    if (isDirty()) forceUploadCachedData();
+  });
+
+  // If user was offline and comes back, flush
+  window.addEventListener("online", () => {
+    if (isDirty()) forceUploadCachedData();
+  });
+}
+
+export function flushUploadIfDirty() {
+  if (!isDirty()) return Promise.resolve({ ok: true, skipped: true });
+  const obj = loadCachedData();
+  if (!obj) return Promise.resolve({ ok: false, error: "No cached data to upload." });
+  return uploadNow(obj);
+}
+
+export function hydrateCachedDataFromServer(dataObj) {
+  const norm = normalizeDataObj(dataObj);
+  const raw = JSON.stringify(norm);
+
+  try { localStorage.setItem(LS_DATA_KEY, raw); } catch {}
+  try { localStorage.setItem("spoonsDataCache", raw); } catch {} // optional legacy
+  try { localStorage.setItem(LS_LAST_CHANGE_KEY, String(nowMs())); } catch {}
+
+  // IMPORTANT: do NOT mark dirty and do NOT upload
+  markClean();
 }
