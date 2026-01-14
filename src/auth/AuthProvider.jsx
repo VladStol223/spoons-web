@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { copypartyVerifyLogin } from "../copypartyApi";
-import { fetchAndDecryptWebDataJson } from "../copypartyData";
+import { fetchAndDecryptWebDataJson, uploadEncryptedWebDataJson } from "../copypartyData";
 import { flushUploadIfDirty, hydrateCachedDataFromServer } from "../copypartySync";
 
 const AuthContext = createContext(null);
@@ -86,16 +86,55 @@ export function AuthProvider({ children }) {
 
     try {
       const base = (import.meta.env.VITE_COPYPARTY_BASE || "/cp").trim();
-      const data = await fetchAndDecryptWebDataJson(base, u, p);
+
+      let data = null;
+
+      try {
+        data = await fetchAndDecryptWebDataJson(base, u, p);
+      } catch (e) {
+        const msg = String(e?.message || "");
+        const is404 = msg.includes("(HTTP 404)") || msg.includes("HTTP 404") || msg.includes("404");
+        if (!is404) throw e;
+
+        // First-time account: create a template web-data.json
+        const template = {
+          spoons: 12,
+          folder_1_tasks: [],
+          folder_2_tasks: [],
+          folder_3_tasks: [],
+          folder_4_tasks: [],
+          folder_5_tasks: [],
+          folder_6_tasks: [],
+          daily_spoons: 12,
+          rest_spoons: { short: 1, half: 2, full: 3 },
+          time_per_spoon: 30,
+          folder_days_ahead: 7,
+          theme: "default",
+          icon_image: "",
+          spoon_name_input: "Spoons",
+          folder_one: "Folder 1",
+          folder_two: "Folder 2",
+          folder_three: "Folder 3",
+          folder_four: "Folder 4",
+          folder_five: "Folder 5",
+          folder_six: "Folder 6",
+          assets: {},
+          label_favorites: [],
+          last_save_date: "",
+          sound_toggle: true,
+          spoons_debt_toggle: false,
+          spoons_debt_consequences_toggle: false
+        };
+
+        await uploadEncryptedWebDataJson(base, u, p, template);
+        data = template;
+      }
 
       // Cache canonical so Calendar + Tasks can immediately render from local
-      // IMPORTANT: go through saveCachedData so it can schedule uploads when needed
       try { hydrateCachedDataFromServer(data ?? {}); } catch {
         try { localStorage.setItem("spoons_data_cache", JSON.stringify(data ?? {})); } catch {}
         try { localStorage.setItem("spoons_data_cache_ts", String(Date.now())); } catch {}
       }
-
-
 
       const nextSpoons = Number.isFinite(Number(data?.spoons)) ? Number(data.spoons) : 0;
       setSpoons(nextSpoons);
