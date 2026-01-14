@@ -56,6 +56,37 @@ async function deleteDav(base, u, p, filename) {
   return false;
 }
 
+async function uploadEncryptedJsonFilePythonStyle(baseCpPath, username, password, filename, dataObj) {
+  const base = (baseCpPath || "").replace(/\/+$/, "");
+  const u = (username || "").trim();
+  const p = (password || "").trim();
+  const fn = String(filename || "").trim();
+  if (!base) throw new Error("Missing Copyparty base (expected /cp).");
+  if (!u || !p) throw new Error("Missing username/password.");
+  if (!fn) throw new Error("Missing filename.");
+
+  const url = `${base}/${encodeURIComponent(u)}/${encodeURIComponent(fn)}`;
+
+  const text = JSON.stringify(dataObj ?? {});
+  const plain = new TextEncoder().encode(text);
+  const encBlob = await encryptForUpload(plain, u, p);
+
+  // Best-effort pre-delete (exactly like Python: ignore failures)
+  try {
+    const dr = await fetch(url, { method: "DELETE", redirect: "follow", credentials: "omit", cache: "no-store", headers: { Authorization: buildAuthHeader(u, p), "Cache-Control": "no-store" } });
+    // ignore anything except maybe logging; 404 is fine
+  } catch {}
+
+  // PUT to the FINAL filename (no temp files, no MOVE)
+  const res = await fetch(url, { method: "PUT", redirect: "follow", credentials: "omit", cache: "no-store", headers: { Authorization: buildAuthHeader(u, p), "Content-Type": "application/octet-stream", "Cache-Control": "no-store" }, body: encBlob });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || `Failed to upload ${fn} (HTTP ${res.status}).`);
+  }
+
+  return true;
+}
+
 async function uploadEncryptedJsonFileAtomic(baseCpPath, username, password, filename, dataObj) {
   const base = (baseCpPath || "").replace(/\/+$/, "");
   const u = (username || "").trim();
@@ -88,5 +119,5 @@ export async function fetchAndDecryptWebDataJson(baseCpPath, username, password)
 }
 
 export async function uploadEncryptedWebDataJson(baseCpPath, username, password, dataObj) {
-  return await uploadEncryptedJsonFileAtomic(baseCpPath, username, password, WEB_DATA_FILENAME, dataObj);
+  return await uploadEncryptedJsonFilePythonStyle(baseCpPath, username, password, WEB_DATA_FILENAME, dataObj);
 }
