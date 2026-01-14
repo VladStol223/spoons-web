@@ -220,9 +220,6 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .settingsTabRail::-webkit-scrollbar { display: none; }
 .settingsTabPill { appearance: none; border: 2px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: inherit; padding: 10px 14px; border-radius: 999px; font-weight: 900; white-space: nowrap; cursor: pointer; user-select: none; }
 .settingsTabPill.isActive { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.26); }
-.settingsTabRailFadeLeft { pointer-events: none; position: absolute; top: 0; left: 0; height: 100%; width: 22px; background: linear-gradient(90deg, rgba(0,0,0,0.35), rgba(0,0,0,0)); border-radius: 999px; }
-.settingsTabRailFadeRight { pointer-events: none; position: absolute; top: 0; right: 0; height: 100%; width: 22px; background: linear-gradient(270deg, rgba(0,0,0,0.35), rgba(0,0,0,0)); border-radius: 999px; }
-
 /* =========================
    WATER CUP (SVG)
 ========================= */

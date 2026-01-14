@@ -124,8 +124,6 @@ export default function SettingsPage() {
             <button key={t.key} type="button" data-tab={t.key} className={`settingsTabPill ${activeTab === t.key ? "isActive" : ""}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </div>
-        <div className="settingsTabRailFadeLeft" />
-        <div className="settingsTabRailFadeRight" />
       </div>
 
       {/* Mobile rail (bottom, above hub) */}
@@ -135,8 +133,6 @@ export default function SettingsPage() {
             <button key={t.key} type="button" className={`settingsTabPill ${activeTab === t.key ? "isActive" : ""}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
           ))}
         </div>
-        <div className="settingsTabRailFadeLeft" />
-        <div className="settingsTabRailFadeRight" />
       </div>
 
       <div style={{ display: "grid", gap: 14, maxWidth: 720 }}>
