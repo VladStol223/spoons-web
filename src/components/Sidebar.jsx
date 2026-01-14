@@ -7,7 +7,7 @@ export default function Sidebar() {
   const today = useMemo(() => getTodayMMDD(), []);
   const items = [
     { to: "/calendar", label: "Calendar", icon: "📅", sub: today },
-    { to: "/social", label: "Social", icon: "💬" },
+    { to: "/water", label: "Water", icon: "💧" },
     { to: "/tasks", label: "Input Tasks", icon: "📝" },
     { to: "/manage", label: "Manage Tasks", icon: "📋" },
     { to: "/settings", label: "Settings", icon: "⚙️" }

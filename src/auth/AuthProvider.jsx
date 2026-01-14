@@ -99,14 +99,8 @@ export function AuthProvider({ children }) {
         // First-time account: create a template web-data.json
         const template = {
           spoons: 12,
-          folder_1_tasks: [],
-          folder_2_tasks: [],
-          folder_3_tasks: [],
-          folder_4_tasks: [],
-          folder_5_tasks: [],
-          folder_6_tasks: [],
           daily_spoons: 12,
-          rest_spoons: { short: 1, half: 2, full: 3 },
+          rest_spoons: { short: 2, half: 5, full: 10 },
           time_per_spoon: 30,
           folder_days_ahead: 7,
           theme: "default",
@@ -118,9 +112,6 @@ export function AuthProvider({ children }) {
           folder_four: "Folder 4",
           folder_five: "Folder 5",
           folder_six: "Folder 6",
-          assets: {},
-          label_favorites: [],
-          last_save_date: "",
           sound_toggle: true,
           spoons_debt_toggle: false,
           spoons_debt_consequences_toggle: false
