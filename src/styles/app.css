@@ -80,6 +80,11 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
 }
 
+.hubItem { outline: none; -webkit-tap-highlight-color: transparent; }
+.hubItem:focus { outline: none; }
+.hubItem:focus-visible { outline: none; }
+.hubItem::-moz-focus-inner { border: 0; }
+
 .mainColumn {
   flex: 1;
   margin-left: 16px;
@@ -105,7 +110,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .spoonsBlock { display: flex; align-items: center; gap: 12px; }
 .spoonsCount { font-size: 28px; font-weight: 800; color: #f5e8c5; }
-.spoonsIcons .spoon { margin-right: 6px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.2)); }
+.spoonsIcons .spoon { margin-right: 4px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.2)); }
 
 .fatigueOuter {
   height: 16px;
@@ -157,7 +162,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .restCard {
   width: 100%;
   max-width: 290px;
-  height: 260px;
+  min-height: 140px;
+  height: clamp(140px, 22vh, 260px);
   border: 4px solid var(--frame);
   border-radius: 14px;
   background: rgba(0,0,0,0.08);
@@ -369,11 +375,11 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
   .fatigueOuter { width: 100%; max-width: none; margin: 0; }
   .topRight { grid-column: 2 / 3; grid-row: 1 / 2; justify-self: end; align-self: start; }
 
-  .contentArea { padding: 10px 12px 6px; align-items: flex-start; }
+  .contentArea { padding: 10px 12px calc(var(--calGapAboveHub) + 6px); align-items: flex-start; }
 
   /* Rests stacked vertically */
   .restRow { grid-template-columns: 1fr; gap: 14px; }
-  .restCard { height: 160px; max-width: 520px; }
+  .restCard { max-width: 520px; height: clamp(130px, 16vh, 180px); }
   .calHideMobile { display: none !important; }
   .hubNav { transform: translateY(-3px); }
 
@@ -429,7 +435,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calSecondRow { flex-wrap: wrap; }
 
 .calBody { width: 100%; }
-.calMonthView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 12px; display: flex; flex-direction: column; height: var(--calPanelH); min-height: 0; }
+.calMonthView { border: 3px solid rgba(0,0,0,0.18); border-radius: 14px; background: rgba(0,0,0,0.08); padding: 12px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 .calDowRow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; flex: 0 0 auto; }
 
@@ -518,7 +524,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 /* fixed hour height: user must scroll to see all 24 hours */
 :root { --calHourH: 64px; } /* tweak this if you want taller/shorter hours */
 
-.calTimeScroll { display: grid; grid-template-columns: 50px 1fr; height: var(--calPanelH); overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.calTimeScroll { display: grid; grid-template-columns: 50px 1fr; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 .calTimeScroll::-webkit-scrollbar { width: 0; height: 0; }
 
 .calTimeGridArea { overflow: auto; background: rgba(0,0,0,0.02); -webkit-overflow-scrolling: touch; }
