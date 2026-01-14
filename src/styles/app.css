@@ -448,15 +448,10 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calCellTasks { width: 100%; flex: 1; min-height: 0; }
 
 .calCellMonth { position: relative; overflow: hidden; }
-.calCellTasks {
-  margin-top: 6px;
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  margin-left: -8px;
-  padding-left: 1px;
-}
-.calCellTaskLine { padding-left: 1px; }
+
+/* Month cell task lines: use the FULL width inside the cell */
+.calCellTasks { margin-top: 6px; display: grid; gap: 4px; width: 100%; min-width: 0; padding: 0; margin-left: 0; }
+.calCellTaskLine { min-width: 0; padding-left: 0; padding-right: 6px; }
 .calCellTaskLine { font-size: 12px; font-weight: 900; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .calCellTaskDone { opacity: 0.55; text-decoration: line-through; text-decoration-thickness: 2px; }
 .calCellMore { font-size: 12px; font-weight: 1000; opacity: 0.85; text-align: left; }
@@ -861,8 +856,49 @@ html[data-theme="dark"] {
 }
 
 @media (max-width: 390px) {
-  :root { --spoonOverlapX: -6px; }
+  :root { --spoonOverlapX: 4px; }
 }
 
 .calGrid { position: relative; }
 .calCellMonth { position: relative; overflow: hidden; }
+
+/* =========================
+   MANAGE TASKS (ManageFolderTasksPage) ROW LAYOUT
+========================= */
+.mftTaskRow { display: grid; grid-template-columns: 1fr 280px; gap: 12px; align-items: start; }
+.mftMeta { display: grid; gap: 8px; min-width: 0; }
+.mftNameCard { padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,165,0,0.95); background: rgba(245,228,178,0.95); color: rgba(20,12,8,0.95); font-weight: 1000; text-transform: lowercase; line-height: 1.15; overflow: hidden; word-break: break-word; display: block; max-height: calc(1.15em * 2); }.mftActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mftBtn { padding: 10px 10px; border-radius: 12px; font-weight: 1000; color: rgba(255,255,255,0.95); cursor: pointer; }
+.mftBtnEdit { border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.10); }
+.mftBtnDel { border: 1px solid rgba(255,120,120,0.35); background: rgba(255,120,120,0.18); font-weight: 1100; }
+
+.mftSpoonsCard { position: relative; padding: 10px 12px; border-radius: 12px; border: 2px solid rgba(255,165,0,0.95); background: rgba(20,12,8,0.60); }
+.mftSpoonsGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; justify-items: center; align-items: center; }
+.mftSpoonBtn { width: 36px; height: 32px; border-radius: 8px; border: 2px solid rgba(255,165,0,0.95); background: rgba(0,0,0,0.55); color: rgba(20,12,8,0.95); font-weight: 1000; cursor: pointer; }
+.mftSpoonBtn.isDone { background: rgba(240,220,150,0.95); }
+.mftSpoonsExtra { position: absolute; right: 10px; bottom: 8px; font-size: 12px; font-weight: 1000; color: rgba(245,228,178,0.95); opacity: 0.9; }
+
+/* Mobile: make the spoons area MUCH smaller, keep it on the right */
+@media (max-width: 820px) and (orientation: portrait) {
+  .mftTaskRow { grid-template-columns: 1fr 168px; gap: 10px; }
+  .mftNameCard { padding: 10px 12px; max-height: calc(1.15em * 3); }
+  .mftActions { gap: 8px; }
+  .mftBtn { padding: 8px 8px; border-radius: 10px; font-weight: 1000; }
+  .mftSpoonsCard { padding: 8px 8px; }
+  .mftSpoonsGrid { gap: 6px; }
+  .mftSpoonBtn { width: 26px; height: 24px; border-radius: 7px; border-width: 2px; font-size: 14px; }
+  .mftSpoonsExtra { right: 8px; bottom: 6px; font-size: 11px; }
+}
+
+@media (max-width: 820px) and (orientation: portrait) {
+  .pageWrap.calendarWrap { padding-bottom: 0 !important; }
+}
+
+@media (max-width: 820px) and (orientation: portrait) {
+  .calCell { padding: 8px; }
+}
+
+/* Kill browser focus rings/highlights on NavLink buttons (the "white lines") */
+.hubItem, .hubItem:focus, .hubItem:focus-visible { outline: none !important; box-shadow: none !important; }
+.hubItem { -webkit-tap-highlight-color: transparent !important; }
+.hubItem::-moz-focus-inner { border: 0 !important; }

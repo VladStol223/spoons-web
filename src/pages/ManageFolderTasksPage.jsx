@@ -113,28 +113,27 @@ export default function ManageFolderTasksPage({ folder, folderId, onBack }) {
     const showCost = Math.min(cost, 10);
     const extra = Math.max(0, cost - showCost);
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px 92px", gap: 12, alignItems: "center" }}>
-        <div style={{ padding: "12px 14px", borderRadius: 12, border: "2px solid rgba(255,165,0,0.95)", background: "rgba(245,228,178,0.95)", color: "rgba(20,12,8,0.95)", fontWeight: 1000, textTransform: "lowercase", lineHeight: 1.15, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>
-          {t.task_name || "task"}
+      <div className="mftTaskRow">
+        <div className="mftMeta">
+          <div className="mftNameCard">{t.task_name || "task"}</div>
+          <div className="mftActions">
+            <button type="button" className="mftBtn mftBtnEdit" onClick={() => setEditTaskId(t.id)}>Edit</button>
+            <button type="button" className="mftBtn mftBtnDel" onClick={() => deleteTask(t.id)}>Del</button>
+          </div>
         </div>
 
-        <div style={{ position: "relative", padding: "10px 12px", borderRadius: 12, border: "2px solid rgba(255,165,0,0.95)", background: "rgba(20,12,8,0.60)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, justifyItems: "center", alignItems: "center" }}>
+        <div className="mftSpoonsCard">
+          <div className="mftSpoonsGrid">
             {Array.from({ length: showCost }).map((_, i) => {
               const isDone = i < done;
               return (
-                <button key={`${t.id}_s${i}`} type="button" onClick={() => toggleSpoon(t.id, i)} title={isDone ? "Undo to here" : "Complete to here"} style={{ width: 36, height: 32, borderRadius: 8, border: "2px solid rgba(255,165,0,0.95)", background: isDone ? "rgba(240,220,150,0.95)" : "rgba(0,0,0,0.55)", color: "rgba(20,12,8,0.95)", fontWeight: 1000, cursor: "pointer" }}>
+                <button key={`${t.id}_s${i}`} type="button" className={`mftSpoonBtn ${isDone ? "isDone" : ""}`} onClick={() => toggleSpoon(t.id, i)} title={isDone ? "Undo to here" : "Complete to here"}>
                   {isDone ? "🥄" : ""}
                 </button>
               );
             })}
           </div>
-          {extra > 0 ? <div style={{ position: "absolute", right: 10, bottom: 8, fontSize: 12, fontWeight: 1000, color: "rgba(245,228,178,0.95)", opacity: 0.9 }}>+{extra}</div> : null}
-        </div>
-
-        <div style={{ display: "grid", gap: 8 }}>
-          <button type="button" onClick={() => setEditTaskId(t.id)} style={{ padding: "10px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.10)", fontWeight: 1000, color: "rgba(255,255,255,0.95)" }}>Edit</button>
-          <button type="button" onClick={() => deleteTask(t.id)} style={{ padding: "10px 10px", borderRadius: 12, border: "1px solid rgba(255,120,120,0.35)", background: "rgba(255,120,120,0.18)", fontWeight: 1100, color: "rgba(255,255,255,0.95)" }}>Del</button>
+          {extra > 0 ? <div className="mftSpoonsExtra">+{extra}</div> : null}
         </div>
       </div>
     );
