@@ -798,7 +798,7 @@ export default function CalendarPage() {
   const tapRef = useRef({ ymd: "", ts: 0 });
   const swipeRef = useRef({ active: false, id: null, sx: 0, sy: 0, st: 0, mx: 0, my: 0 });
   const monthCellProbeRef = useRef(null);
-  const [monthMaxLines, setMonthMaxLines] = useState(3);
+  const monthMaxLines = 3;
 
   function computeDurationMs(fromSnap, toSnap) {
     const maxMs = 2000;
@@ -894,27 +894,6 @@ export default function CalendarPage() {
 
   const monthGrid = useMemo(() => getMonthGrid(visibleMonth), [visibleMonth]);
   const monthWeeks = useMemo(() => Math.ceil(monthGrid.length / 7), [monthGrid]);
-
-  useEffect(() => {
-    const el = monthCellProbeRef.current;
-    if (!el) return;
-    function compute() {
-      const rect = el.getBoundingClientRect();
-      const cellH = rect.height || 0;
-      const padTop = 10;
-      const dayNumH = 18;
-      const gap = 6;
-      const lineH = 14;
-      const tasksArea = Math.max(0, cellH - padTop - dayNumH - gap - 6);
-      const lines = Math.max(1, Math.floor(tasksArea / (lineH + 4)));
-      setMonthMaxLines(Math.max(1, Math.min(6, lines)));
-    }
-    compute();
-    let ro = null;
-    if (window.ResizeObserver) { ro = new ResizeObserver(() => compute()); ro.observe(el); }
-    window.addEventListener("resize", compute);
-    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", compute); };
-  }, [view, monthWeeks]);
 
   function MonthInner({ snapSelected, snapVisibleMonth }) {
     const snapMonthIdx = snapVisibleMonth.getMonth();

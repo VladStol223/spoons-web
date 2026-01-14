@@ -71,7 +71,7 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
 
   return (
     <header className="topBar" style={{ padding: "12px 14px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", gridColumn: "1 / -1" }}>
         <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
           <span aria-hidden="true" title={syncTitle} style={{ position: "absolute", top: -10, left: 0, fontSize: 12, lineHeight: "12px", opacity: 0.85, pointerEvents: "none" }}>
             {syncEmoji}
@@ -100,9 +100,9 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
             }}
           />
 
-          <div className="spoonsIcons" aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-            <div style={{ display: "flex", gap: 0, alignItems: "center", flexWrap: "nowrap" }}>{row1}</div>
-            <div style={{ display: "flex", gap: 0, alignItems: "center", flexWrap: "nowrap" }}>{row2}</div>
+          <div className="spoonsIcons" aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: 1, width: "100%" }}>
+            <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", flexWrap: "nowrap" }}>{row1}</div>
+            <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", flexWrap: "nowrap" }}>{row2}</div>
           </div>
         </div>
 

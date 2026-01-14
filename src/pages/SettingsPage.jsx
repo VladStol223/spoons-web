@@ -50,6 +50,31 @@ export default function SettingsPage() {
   const [dataObj, setDataObj] = React.useState(() => ensureWaterSettings(ensureFoldersData(loadCachedData())));
   const folders = Array.isArray(dataObj?.folders) ? dataObj.folders : [];
 
+  const [folderDrafts, setFolderDrafts] = React.useState(() => {
+    const m = {};
+    for (const f of folders) m[f.id] = String(f?.name || "");
+    return m;
+  });
+
+  const [waterGoalDraft, setWaterGoalDraft] = React.useState(() => String(Number(dataObj?.water?.daily_goal_oz) || 80));
+
+  React.useEffect(() => {
+    setFolderDrafts((prev) => {
+      const next = { ...prev };
+      for (const f of folders) {
+        if (!(f.id in next)) next[f.id] = String(f?.name || "");
+      }
+      for (const k of Object.keys(next)) {
+        if (!folders.some((f) => f.id === k)) delete next[k];
+      }
+      return next;
+    });
+  }, [folders]);
+
+  React.useEffect(() => {
+    setWaterGoalDraft(String(Number(dataObj?.water?.daily_goal_oz) || 80));
+  }, [dataObj?.water?.daily_goal_oz]);
+
   const TABS = React.useMemo(() => ([
     { key: "account", label: "Account" },
     { key: "folders", label: "Folders" },
@@ -153,7 +178,23 @@ export default function SettingsPage() {
               {folders.map((f, i) => (
                 <div key={f.id} style={{ display: "grid", gridTemplateColumns: "140px 1fr 44px", gap: 10, alignItems: "center" }}>
                   <div style={{ fontWeight: 900, opacity: 0.9 }}>{`Folder ${i + 1}:`}</div>
-                  <input value={String(f.name || "")} onChange={(e) => renameFolder(f.id, e.target.value)} placeholder={`Folder ${i + 1}`} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }} />
+                  <input
+                    value={String(folderDrafts?.[f.id] ?? "")}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setFolderDrafts((prev) => ({ ...prev, [f.id]: v }));
+                    }}
+                    onBlur={() => {
+                      const raw = String(folderDrafts?.[f.id] ?? "");
+                      const trimmed = raw.trim();
+                      const finalName = trimmed === "" ? `Folder ${i + 1}` : raw;
+                      if (finalName !== String(f.name || "")) renameFolder(f.id, finalName);
+                      if (trimmed === "") setFolderDrafts((prev) => ({ ...prev, [f.id]: `Folder ${i + 1}` }));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    placeholder={`Folder ${i + 1}`}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }}
+                  />
                   <button type="button" onClick={() => removeFolder(f.id)} title="Remove folder" style={{ width: 44, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,80,80,0.14)", fontWeight: 900 }}>−</button>
                 </div>
               ))}
@@ -168,12 +209,16 @@ export default function SettingsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 10, alignItems: "center", maxWidth: 420 }}>
               <div style={{ fontWeight: 900, opacity: 0.9 }}>Goal (oz):</div>
               <input
-                value={String(goalOz)}
+                value={String(waterGoalDraft)}
                 inputMode="numeric"
-                onChange={(e) => {
-                  const n = Math.max(1, Math.floor(Number(String(e.target.value || "").replace(/[^\d]/g, "")) || 0));
+                onChange={(e) => { setWaterGoalDraft(e.target.value); }}
+                onBlur={() => {
+                  const digits = String(waterGoalDraft || "").replace(/[^\d]/g, "");
+                  const n = digits === "" ? 80 : Math.max(1, Math.floor(Number(digits) || 0));
+                  setWaterGoalDraft(String(n));
                   persist({ ...dataObj, water: { ...(dataObj.water || {}), daily_goal_oz: n } });
                 }}
+                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }}
               />
             </div>
