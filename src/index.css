@@ -50,38 +50,29 @@ a:hover { text-decoration: underline; }
 
   body {
     min-height: 100dvh;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-
-    /* Make the "system UI bars" match your old neutral gray */
+    padding-top: env(safe-area-inset-top); /* keep TOP fix */
+    padding-bottom: 0;                   /* IMPORTANT: don't double-count bottom */
     background: #222;
   }
 
-  /* Paint the safe-area regions so they don't look like empty gaps */
-  body::before,
-  body::after {
+  /* Paint ONLY the top safe-area so it doesn't look like a gap */
+  body::before {
     content: "";
     position: fixed;
     left: 0;
     right: 0;
-    pointer-events: none;
-    z-index: 9999;
-    background: #222; /* same as body */
-  }
-
-  body::before {
     top: 0;
     height: env(safe-area-inset-top);
+    pointer-events: none;
+    z-index: 1;        /* low, so it won't cover your UI */
+    background: #222;
   }
 
-  body::after {
-    bottom: 0;
-    height: env(safe-area-inset-bottom);
-  }
-
-  /* Ensure your app fills the padded body */
   #root {
-    min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: calc(100dvh - env(safe-area-inset-top));
     background: transparent;
+    position: relative;
+    z-index: 2;        /* ensure app renders above the top paint layer */
   }
 }
+
