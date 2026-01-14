@@ -1,3 +1,4 @@
+// src/components/TopBar.jsx
 import React from "react";
 
 export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
@@ -46,27 +47,36 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
   const row1 = Array.from({ length: 10 }).map((_, i) => (<span key={`r1_${i}`} className="spoon" style={{ opacity: i < row1Count ? 1 : 0.18 }}>🥄</span>));
   const row2 = Array.from({ length: 10 }).map((_, i) => (<span key={`r2_${i}`} className="spoon" style={{ opacity: i < row2Count ? 1 : 0.18 }}>🥄</span>));
 
+  function readSyncState() {
+    let dirty = false;
+    let err = "";
+    try { dirty = localStorage.getItem("spoonsDataDirty") === "1"; } catch {}
+    try { err = localStorage.getItem("spoonsDataLastSyncError") || ""; } catch {}
+    return { dirty, err };
+  }
+
+  const [syncState, setSyncState] = React.useState(() => readSyncState());
+
+  React.useEffect(() => {
+    function tick() { setSyncState(readSyncState()); }
+    tick();
+    const id = setInterval(tick, 500);
+    window.addEventListener("storage", tick);
+    window.addEventListener("spoons_cache_changed", tick);
+    return () => { clearInterval(id); window.removeEventListener("storage", tick); window.removeEventListener("spoons_cache_changed", tick); };
+  }, []);
+
+  const syncEmoji = syncState.err ? "⚠️" : (syncState.dirty ? "…" : "☁️");
+  const syncTitle = syncState.err ? `Sync error: ${syncState.err}` : (syncState.dirty ? "Changes not uploaded yet" : "Synced");
+
   return (
     <header className="topBar" style={{ padding: "12px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" }}>
-          <div style={{
-            position: "fixed",
-            bottom: 6,
-            left: 6,
-            zIndex: 9999,
-            background: "rgba(0,0,0,0.7)",
-            color: "#0f0",
-            fontSize: 11,
-            padding: "6px 8px",
-            borderRadius: 6,
-            fontFamily: "monospace"
-        }}>
-            dirty: {localStorage.getItem("spoonsDataDirty")}<br/>
-            lastUp: {localStorage.getItem("spoons_last_upload_ts")}<br/>
-            err: {localStorage.getItem("spoonsDataLastSyncError") || "none"}
-            auth: {!!sessionStorage.getItem("spoonsAuth") ? "yes" : "NO"}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+          <span aria-hidden="true" title={syncTitle} style={{ position: "absolute", top: -10, left: 0, fontSize: 12, lineHeight: "12px", opacity: 0.85, pointerEvents: "none" }}>
+            {syncEmoji}
+          </span>
+
           <input
             value={editText}
             onChange={(e) => setEditText(e.target.value.replace(/[^\d]/g, ""))}
