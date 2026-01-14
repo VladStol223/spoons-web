@@ -23,7 +23,7 @@ body {
   display: block;
 
   /* IMPORTANT: eliminate gray bleed-through */
-  background: #4c331e; /* matches your --frame-dark from App.css */
+  background: #222; /* matches your --frame-dark from App.css */
 
   overflow: hidden;
   overscroll-behavior: none;
@@ -32,7 +32,7 @@ body {
 }
 
 #root {
-  background: #4c331e;
+  background: #222;
   overflow: hidden;
 }
 
