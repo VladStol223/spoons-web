@@ -253,17 +253,21 @@ export default function InputTasksPage() {
     }
   }
 
+  function hideKeyboard() { try { const ae = document.activeElement; if (ae && typeof ae.blur === "function") ae.blur(); } catch {} }
+
+  useEffect(() => { if (taskRef.current) taskRef.current.focus(); }, []);
+
   useEffect(() => {
-    if (taskRef.current) taskRef.current.focus();
     window.addEventListener("keydown", onKeyDownGlobal, true);
     return () => window.removeEventListener("keydown", onKeyDownGlobal, true);
   }, [descriptionToggle, timeToggle, recurringToggle, taskName, spoons, timeText, monthIdx0, dayNum, howOftenDays, howLongWeeks, reps]);
 
-  const dataForFolders = useMemo(() => ensureDataShape(loadCachedData()), []);
-  const folders = useMemo(() => {
-    const d = ensureDataShape(loadCachedData());
-    return Array.isArray(d.folders) ? d.folders : [];
-  }, []);
+
+    const dataForFolders = useMemo(() => ensureDataShape(loadCachedData()), []);
+    const folders = useMemo(() => {
+      const d = ensureDataShape(loadCachedData());
+      return Array.isArray(d.folders) ? d.folders : [];
+    }, []);
 
 
   return (
@@ -433,7 +437,7 @@ export default function InputTasksPage() {
                 <div>{duePreview.line2}</div>
               </div>
 
-              <button type="button" onClick={addTask} style={{ padding: "10px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.14)", fontWeight: 900 }}>Add Task</button>
+              <button type="button" onPointerDown={() => hideKeyboard()} onClick={() => { hideKeyboard(); addTask(); }} style={{ padding: "10px 14px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.14)", fontWeight: 900 }}>Add Task</button>
             </div>
           </div>
         </div>

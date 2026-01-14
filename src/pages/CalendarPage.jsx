@@ -916,7 +916,6 @@ export default function CalendarPage() {
     return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", compute); };
   }, [view, monthWeeks]);
 
-
   function MonthInner({ snapSelected, snapVisibleMonth }) {
     const snapMonthIdx = snapVisibleMonth.getMonth();
     const snapMonthGrid = getMonthGrid(snapVisibleMonth);
@@ -934,14 +933,14 @@ export default function CalendarPage() {
             const isSelected0 = isSameDay(d, snapSelected);
             const ymd = isoYmd(d);
             const tasks = Array.isArray(tasksByDate[ymd]) ? tasksByDate[ymd] : [];
-            const normalLines = tasks.slice(0, 3);
+            const lines = tasks.slice(0, Math.max(1, Number(monthMaxLines || 3)));
 
             return (
               <button key={ymd} ref={(i === 0) ? monthCellProbeRef : null} className={`calCell calCellMonth ${inMonth ? "" : "calCellMuted"} ${isToday0 ? "calCellToday" : ""} ${isSelected0 ? "calCellSelected" : ""}`} type="button" onClick={() => setSelectedDate(startOfDay(d))} onPointerUp={() => onDayCellTap(d)}>
                 <div className="calCellNum">{d.getDate()}</div>
-                {normalLines.length ? (
+                {lines.length ? (
                   <div className="calCellTasks">
-                    {normalLines.map((t, idx) => (<div key={`${ymd}_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
+                    {lines.map((t, idx) => (<div key={`${ymd}_l_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
                   </div>
                 ) : null}
               </button>
