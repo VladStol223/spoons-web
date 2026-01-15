@@ -103,12 +103,20 @@ export default function AddRoutineTaskPage({ routine, routineId, onCancel, onSav
   const [time, setTime] = React.useState("17:00");
   const [durationMins, setDurationMins] = React.useState(10);
 
-  const [weekday, setWeekday] = React.useState(today.getDay());
+const [weekdays, setWeekdays] = React.useState([today.getDay()]);
   const [classStart, setClassStart] = React.useState("09:00");
   const [classEnd, setClassEnd] = React.useState("10:00");
 
   const [recur, setRecur] = React.useState({ kind: "every_n_days", n: 1, start_weekday: today.getDay() });
   const [error, setError] = React.useState("");
+
+  function toggleClassWeekday(i) {
+    const cur = Array.isArray(weekdays) ? [...weekdays] : [];
+    const has = cur.includes(i);
+    const next = has ? cur.filter((x) => x !== i) : [...cur, i];
+    next.sort((a, b) => a - b);
+    setWeekdays(next.length ? next : [today.getDay()]);
+  }
 
   function saveItem() {
     setError("");
@@ -123,8 +131,9 @@ export default function AddRoutineTaskPage({ routine, routineId, onCancel, onSav
       const en = parseHhMm(classEnd);
       if (!st) return setError("Class start time must be HH:MM.");
       if (!en) return setError("Class end time must be HH:MM.");
-      const wd = Number(weekday);
-      if (!Number.isFinite(wd) || wd < 0 || wd > 6) return setError("Weekday invalid.");
+      const wds = (Array.isArray(weekdays) ? weekdays : []).map((x) => Number(x)).filter((x) => Number.isFinite(x) && x >= 0 && x <= 6);
+      const uniqWds = Array.from(new Set(wds)).sort((a, b) => a - b);
+      if (!uniqWds.length) return setError("Pick at least one weekday.");
 
       const stM = parseHhMm(st) ? (Number(st.slice(0, 2)) * 60 + Number(st.slice(3, 5))) : null;
       const enM = parseHhMm(en) ? (Number(en.slice(0, 2)) * 60 + Number(en.slice(3, 5))) : null;
@@ -143,10 +152,10 @@ export default function AddRoutineTaskPage({ routine, routineId, onCancel, onSav
         order: nextOrder,
         time: st,
         duration_mins: dur,
-        recur: { kind: "weekly", weekdays: [wd] },
+        recur: { kind: "weekly", weekdays: uniqWds },
         start_time: st,
         end_time: en,
-        weekday: wd,
+        weekdays: uniqWds,
       };
 
       arr.push(item);
@@ -218,10 +227,10 @@ export default function AddRoutineTaskPage({ routine, routineId, onCancel, onSav
 
           {rType === "class" ? (
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 1000, opacity: 0.95 }}>Weekday</div>
+              <div style={{ fontWeight: 1000, opacity: 0.95 }}>Weekdays</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((lab, i) => (
-                  <button key={`c_wd_${i}`} type="button" className={`primaryBtn ${weekday === i ? "isActivePill" : ""}`} onClick={() => setWeekday(i)}>{lab}</button>
+                  <button key={`c_wd_${i}`} type="button" className={`primaryBtn ${weekdays.includes(i) ? "isActivePill" : ""}`} onClick={() => toggleClassWeekday(i)}>{lab}</button>
                 ))}
               </div>
 
