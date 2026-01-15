@@ -140,10 +140,12 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 
 .contentArea {
   flex: 1;
+  min-height: 0;
   padding: 22px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
+  overflow: hidden;
 }
 
 .pageWrap { width: 100%; max-width: 900px; color: var(--text); }
@@ -437,8 +439,8 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
 .calBody { width: 100%; position: relative; }
 
 .calendarWrap .calMonthView {
-  height: calc(100% - 20px);
-  max-height: calc(100% - 20px);
+  height: calc(100% - 30px);
+  max-height: calc(100% - 30px);
 }
 
 .calMonthView {
@@ -840,7 +842,7 @@ html[data-theme="dark"] {
 .calTaskRow { display: grid; grid-template-columns: 1fr 22px; gap: 8px; align-items: center; }
 .calTaskName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.calTaskDragHandle { width: 22px; height: 18px; display: grid; place-items: center; font-weight: 1100; opacity: 0.85; border-radius: 8px; border: 2px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.14); cursor: grab; user-select: none; }
+.calTaskDragHandle { width: 44px; height: 36px; display: grid; place-items: center; font-weight: 1100; opacity: 0.9; border-radius: 12px; border: 2px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.14); cursor: grab; user-select: none; touch-action: none; }
 .calTaskDragHandle:active { cursor: grabbing; opacity: 1; }
 
 .calTimedTask { height: 100%; border-radius: 12px; border: 2px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.18); font-weight: 950; font-size: 12px; line-height: 14px; padding: 6px 8px; position: relative; display: grid; grid-template-rows: auto 1fr auto; }
@@ -882,7 +884,7 @@ html[data-theme="dark"] {
 ========================= */
 .mftTaskRow { display: grid; grid-template-columns: 1fr 280px; gap: 12px; align-items: start; }
 .mftMeta { display: grid; gap: 8px; min-width: 0; }
-.mftNameCard { padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,165,0,0.95); background: rgba(245,228,178,0.95); color: rgba(20,12,8,0.95); font-weight: 1000; text-transform: lowercase; line-height: 1.15; overflow: hidden; word-break: break-word; display: block; max-height: calc(1.15em * 2); }.mftActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mftNameCard { padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,165,0,0.95); background: rgba(245,228,178,0.95); color: rgba(20,12,8,0.95); font-weight: 1000; text-transform: lowercase; line-height: 1.15; overflow: hidden; white-space: nowrap; text-overflow: clip; word-break: normal; display: block; }
 .mftBtn { padding: 10px 10px; border-radius: 12px; font-weight: 1000; color: rgba(255,255,255,0.95); cursor: pointer; }
 .mftBtnEdit { border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.10); }
 .mftBtnDel { border: 1px solid rgba(255,120,120,0.35); background: rgba(255,120,120,0.18); font-weight: 1100; }
@@ -931,8 +933,24 @@ html[data-theme="dark"] {
 
 .routinePillPlus { background: rgba(255,255,255,0.08); border-style: dashed; opacity: 0.95; }
 
-.routineTaskRow { display: grid; grid-template-columns: 30px 1fr 42px 52px; gap: 10px; align-items: center; padding: 14px 14px; border-radius: 18px; border: 2px solid rgba(0,0,0,0.18); background: rgba(255,255,255,0.10); box-shadow: 0 10px 20px rgba(0,0,0,0.20); }
-.routineTaskDots { opacity: 0.55; font-weight: 1100; font-size: 18px; user-select: none; }
+.routineTaskRow { display: grid; grid-template-columns: 56px 1fr 42px 52px; gap: 10px; align-items: center; padding: 14px 14px; border-radius: 18px; border: 2px solid rgba(0,0,0,0.18); background: rgba(255,255,255,0.10); box-shadow: 0 10px 20px rgba(0,0,0,0.20); }
+
+.routineTaskDots { opacity: 0.75; font-weight: 1100; font-size: 20px; user-select: none; }
+
+.routineTaskDotsDrag {
+  width: 56px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  border: 2px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.12);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .routineTaskName { font-weight: 1000; font-size: 18px; color: rgba(255,255,255,0.92); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: clip; }
 .routineTaskCost { text-align: right; font-weight: 1000; opacity: 0.95; }
 .routineTaskCheck { width: 52px; height: 44px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.10); cursor: pointer; font-size: 18px; }
@@ -944,7 +962,6 @@ html[data-theme="dark"] {
 .isActivePill { background: rgba(255,255,255,0.18) !important; border-color: rgba(255,255,255,0.32) !important; }
 
 .routineTaskRowDone { opacity: 0.72; }
-.routineTaskDotsDrag { cursor: grab; touch-action: none; }
 .routineTaskDotsDrag:active { cursor: grabbing; }
 
 .calAllDayRoutine { opacity: 0.95; border: 1px dashed rgba(255,255,255,0.22); border-radius: 10px; padding: 3px 6px; background: rgba(0,0,0,0.12); }
