@@ -98,7 +98,7 @@ export default function WaterPage() {
 
 
   const cupRef = React.useRef(null);
-  const dragRef = React.useRef({ active: false, y0: 0, startOz: 0, pending: 0 });
+  const dragRef = React.useRef({ active: false, y0: 0, startOz: 0, pending: 0, remaining: 0 });
 
   const [pendingOz, setPendingOz] = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -112,12 +112,22 @@ export default function WaterPage() {
   function onPointerDown(e) {
     const el = cupRef.current;
     if (!el) return;
+
     const y = ("touches" in e && e.touches?.[0]) ? e.touches[0].clientY : e.clientY;
+
+    // Remaining capacity for today (can't pour more than what's left to reach goal)
+    const remaining = clamp(goalOz - todayTotalOz, 0, goalOz);
+
     dragRef.current.active = true;
     dragRef.current.y0 = y;
-    dragRef.current.startOz = 0; // always start a fresh pour; do NOT stack across drags
-    dragRef.current.pending = 0;
-    setPendingOz(0);
+    dragRef.current.remaining = remaining;
+
+    // Start from the current pending amount so a re-touch continues adjusting (no reset)
+    const start = clamp(Math.round(Number(pendingOz) || 0), 0, remaining);
+    dragRef.current.startOz = start;
+    dragRef.current.pending = start;
+    if (start !== pendingOz) setPendingOz(start);
+
     setIsDragging(true);
     try { el.setPointerCapture?.(e.pointerId); } catch {}
     e.preventDefault?.();
@@ -126,16 +136,17 @@ export default function WaterPage() {
   function computeFromY(yNow) {
     const el = cupRef.current;
     if (!el) return pendingOz;
+
     const r = el.getBoundingClientRect();
     const dy = dragRef.current.y0 - yNow;
 
-    // Remaining capacity for today (can't pour more than what's left to reach goal)
-    const remaining = clamp(goalOz - todayTotalOz, 0, goalOz);
+    const remaining = Number.isFinite(Number(dragRef.current.remaining)) ? Number(dragRef.current.remaining) : clamp(goalOz - todayTotalOz, 0, goalOz);
 
     // Scale drag to remaining capacity, not full goal
     const ozPerPx = remaining / Math.max(180, r.height);
     const deltaOz = dy * ozPerPx;
 
+    // dy positive (drag up) increases; dy negative (drag down) decreases
     return clamp(Math.round(dragRef.current.startOz + deltaOz), 0, remaining);
   }
 
@@ -152,6 +163,7 @@ export default function WaterPage() {
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
     setIsDragging(false);
+    try { cupRef.current?.releasePointerCapture?.(e.pointerId); } catch {}
     e.preventDefault?.();
   }
 

@@ -32,6 +32,11 @@ function normalizeTask(raw) {
 
 export default function EditTaskPage({ folderId, taskId, onCancel, onSaved }) {
   const listKey = `folder_${String(folderId || "f1")}_tasks`;
+
+  const [folders, setFolders] = React.useState([]);
+  const [showFolderPicker, setShowFolderPicker] = React.useState(false);
+  const [moveToFolderId, setMoveToFolderId] = React.useState(String(folderId || "f1"));
+
   const [name, setName] = React.useState("");
   const [desc, setDesc] = React.useState("");
   const [spoons, setSpoons] = React.useState("");
@@ -40,6 +45,10 @@ export default function EditTaskPage({ folderId, taskId, onCancel, onSaved }) {
 
   React.useEffect(() => {
     const data0 = ensureFoldersData(loadCachedData());
+    setFolders(Array.isArray(data0.folders) ? data0.folders : []);
+    setMoveToFolderId(String(folderId || "f1"));
+    setShowFolderPicker(false);
+
     const arr = Array.isArray(data0[listKey]) ? data0[listKey] : [];
     const idx = arr.findIndex((x) => String(x?.id || "") === String(taskId));
     if (idx < 0) return;
@@ -50,6 +59,33 @@ export default function EditTaskPage({ folderId, taskId, onCancel, onSaved }) {
     setDue(String(t0.due_date || ""));
     setTime(String(t0.time || ""));
   }, [folderId, taskId]);
+
+  function moveTaskToFolder(targetFolderId) {
+    const fromFolderId = String(folderId || "f1");
+    const toFolderId = String(targetFolderId || fromFolderId);
+    if (!toFolderId) return;
+    if (toFolderId === fromFolderId) { setShowFolderPicker(false); return; }
+
+    const data0 = ensureFoldersData(loadCachedData());
+    const fromKey = `folder_${fromFolderId}_tasks`;
+    const toKey = `folder_${toFolderId}_tasks`;
+
+    const fromArr = Array.isArray(data0[fromKey]) ? [...data0[fromKey]] : [];
+    const idx = fromArr.findIndex((x) => String(x?.id || "") === String(taskId));
+    if (idx < 0) return;
+
+    const taskObj = { ...fromArr[idx] };
+    const nextFrom = fromArr.filter((x) => String(x?.id || "") !== String(taskId));
+    const toArr = Array.isArray(data0[toKey]) ? [...data0[toKey]] : [];
+    toArr.push(taskObj);
+
+    data0[fromKey] = nextFrom;
+    data0[toKey] = toArr;
+    data0._local_updated_at = Date.now();
+    saveCachedData(data0);
+
+    if (typeof onSaved === "function") onSaved(data0);
+  }
 
   function save() {
     const data0 = ensureFoldersData(loadCachedData());
@@ -72,7 +108,44 @@ export default function EditTaskPage({ folderId, taskId, onCancel, onSaved }) {
       <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: 720 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ fontWeight: 1000, fontSize: 20 }}>Edit Task</div>
-          <button type="button" onClick={onCancel} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(0,0,0,0.12)", color: "rgba(255,255,255,0.95)", fontWeight: 950 }}>← Back</button>
+
+          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowFolderPicker((v) => !v)}
+              style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(0,0,0,0.12)", color: "rgba(255,255,255,0.95)", fontWeight: 950, cursor: "pointer" }}
+              title="Move task to a different folder"
+            >
+              {(() => {
+                const curId = String(moveToFolderId || folderId || "f1");
+                const f = (folders || []).find((x) => String(x?.id) === curId);
+                return `Folder: ${String(f?.name || curId)}`;
+              })()} ▾
+            </button>
+
+            {showFolderPicker ? (
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 260, borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(20,20,20,0.98)", boxShadow: "0 18px 40px rgba(0,0,0,0.45)", padding: 10, zIndex: 50 }}>
+                <div style={{ fontWeight: 1000, fontSize: 12, opacity: 0.9, marginBottom: 8 }}>Move to folder</div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {(folders || []).map((f) => {
+                    const isCur = String(f?.id) === String(folderId || "f1");
+                    return (
+                      <button
+                        key={String(f?.id)}
+                        type="button"
+                        onClick={() => { setMoveToFolderId(String(f?.id)); moveTaskToFolder(String(f?.id)); setShowFolderPicker(false); }}
+                        style={{ width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: isCur ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.95)", fontWeight: 950, cursor: "pointer" }}
+                      >
+                        {String(f?.name || f?.id || "Folder")}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <button type="button" onClick={onCancel} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(0,0,0,0.12)", color: "rgba(255,255,255,0.95)", fontWeight: 950 }}>← Back</button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gap: 10, padding: 14, borderRadius: 14, background: "rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.14)" }}>

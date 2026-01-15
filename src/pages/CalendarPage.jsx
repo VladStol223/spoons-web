@@ -557,7 +557,9 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
                     })() : null}
                     <div className="calTaskRow">
                       <div className="calTaskName">{t.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, t.id, key, t.durationMins)} aria-label="Drag to move">≡</div>
+                      {((view === "day") ? (selectedTask === `${key}:${t.id}`) : true) ? (
+                        <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, t.id, key, t.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, t.id, key, t.durationMins)} aria-label="Drag to move">≡</div>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -584,16 +586,30 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
               const selKey = `${b.ymd}:${b.taskId}`;
               const isSel = selectedTask === selKey;
               const isHover = hoverTask === selKey;
-              const showHandles = (isSel || isHover) && !b.isRoutine;
+
+              const isDayView = (view === "day");
+              const isTiny = Number(b.durationMins || 60) <= 30;
+
+              // Resize handles: keep your existing behavior (hover/selected), but never for routines.
+              const showResizeHandles = (isSel || isHover) && !b.isRoutine;
+
+              // Drag handle rules:
+              // - never show for routines
+              // - in DAY view: only show when selected
+              // - in other views: keep it available (but not required to hover/select)
+              const showDragHandle = !b.isRoutine && (isDayView ? isSel : true);
+
               return (
                 <div key={b.key} className={`calTimedTaskWrap ${isSel ? "calTimedTaskWrapSelected" : ""}`} style={{ position: "absolute", left: `${b.leftPct}%`, width: `${b.widthPct}%`, top: `${b.topPx}px`, height: `${b.heightPx}px`, padding: "0px", boxSizing: "border-box", pointerEvents: "auto" }} onClick={(e) => { e.stopPropagation(); setSelectedTask(selKey); }} onMouseEnter={() => setHoverTask(selKey)} onMouseLeave={() => setHoverTask((v) => (v === selKey ? null : v))}>
-                  <div className={`calTimedTask ${b.isComplete ? "calTimedTaskDone" : ""} ${b.isRoutine ? "calTimedRoutine" : ""}`} style={{ height: "100%", padding: "6px 8px", boxSizing: "border-box" }}>
-                    {showHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
+                  <div className={`calTimedTask ${b.isComplete ? "calTimedTaskDone" : ""} ${b.isRoutine ? "calTimedRoutine" : ""} ${isTiny ? "calTimedTaskTiny" : ""}`} style={{ height: "100%", padding: "6px 8px", boxSizing: "border-box" }}>
+                    {showResizeHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
+
                     <div className="calTimedTaskRow">
                       <div className="calTimedTaskName">{b.name}</div>
-                      <div className="calTaskDragHandle" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, b.taskId, b.ymd, b.durationMins)} aria-label="Drag to move">≡</div>
+                      {showDragHandle ? (<div className="calTaskDragHandle calTaskDragHandleTimed" draggable onDragStart={(e) => onDragStartTask(e, b.taskId, b.ymd, b.durationMins)} onDragEnd={onDragEndTask} onPointerDown={(e) => beginTouchDrag(e, b.taskId, b.ymd, b.durationMins)} aria-label="Drag to move">≡</div>) : null}
                     </div>
-                    {showHandles ? (<div className="calResizeHandle calResizeHandleBottom" onPointerDown={(e) => beginResize(e, "bottom", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag down to extend later">▼</div>) : null}
+
+                    {showResizeHandles ? (<div className="calResizeHandle calResizeHandleBottom" onPointerDown={(e) => beginResize(e, "bottom", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag down to extend later">▼</div>) : null}
                   </div>
                 </div>
               );
