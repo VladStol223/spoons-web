@@ -164,11 +164,13 @@ export default function ManageFolderTasksPage({ folder, folderId, onBack }) {
           <div style={{ opacity: 0.9, fontWeight: 900, fontSize: 12 }}>Today: {isoYmd(startOfToday())}</div>
         </div>
 
-        <div style={{ borderRadius: 14, padding: 16, background: "rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.14)", maxWidth: 980 }}>
+        <div className="mftScrollBox" style={{ borderRadius: 14, padding: 16, background: "rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.14)", maxWidth: 980, overflowY: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", maxHeight: "calc(100vh - var(--hubBarH) - 170px)" }}>
           <Section title="Overdue" items={grouped.overdue} />
           {grouped.upcomingKeys.map((k) => <Section key={`u_${k}`} title={headerForDays(k)} items={grouped.upcoming[k]} />)}
           <Section title="Completed" items={grouped.completed} />
         </div>
+
+        <style>{`.mftScrollBox::-webkit-scrollbar{width:0;height:0;}`}</style>
       </div>
     </div>
   );

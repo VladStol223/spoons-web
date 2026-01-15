@@ -7,7 +7,7 @@ import CalendarPage from "./pages/CalendarPage";
 import WaterPage from "./pages/WaterPage";
 import InputSpoonsPage from "./pages/InputSpoonsPage";
 import InputTasksPage from "./pages/InputTasksPage";
-import ManageTasksPage from "./pages/ManageTasksPage";
+import ManageFoldersPage from "./pages/ManageFoldersPage";
 import SettingsPage from "./pages/SettingsPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -23,7 +23,7 @@ export default function App() {
           <Route path="/water" element={<WaterPage />} />
           <Route path="/spoons" element={<InputSpoonsPage />} />
           <Route path="/tasks" element={<InputTasksPage />} />
-          <Route path="/manage" element={<ManageTasksPage />} />
+          <Route path="/manage" element={<ManageFoldersPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
