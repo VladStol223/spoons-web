@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { loadCachedData, saveCachedData } from "../copypartySync";
 import AddRoutineTaskPage from "./AddRoutineTaskPage";
 import EditRoutineTaskPage from "./EditRoutineTaskPage";
+import ColorPicker from "../components/ColorPicker";
 
 function isoYmd(d) { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const da = String(d.getDate()).padStart(2, "0"); return `${y}-${m}-${da}`; }
 function startOfToday() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
@@ -47,6 +48,7 @@ export default function ManageRoutinePage({ routineId, onBack }) {
   const [dataObj, setDataObj] = useState(() => ensureRoutinesData(loadCachedData()));
   const [showAddTask, setShowAddTask] = useState(false);
   const [editTaskId, setEditTaskId] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
   const dragRef = useRef({ active: false, dragId: "", overId: "", pointerId: 0 });
   useEffect(() => { setDataObj(ensureRoutinesData(loadCachedData())); setShowAddTask(false); setEditTaskId(""); }, [routineId]);
 
@@ -238,36 +240,57 @@ export default function ManageRoutinePage({ routineId, onBack }) {
           <div style={{ opacity: 0.9, fontWeight: 900, fontSize: 12 }}>Today: {ymd}</div>
         </div>
 
-        {/* Routine settings */}
-        <div style={{ borderRadius: 14, padding: 14, background: "rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.14)", maxWidth: 980, display: "grid", gap: 10 }}>
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 1000, opacity: 0.95 }}>Routine Settings</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        {/* Collapsible settings (opens above the button row) */}
+        {showSettings ? (
+          <div style={{ borderRadius: 14, padding: 14, background: "rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.14)", maxWidth: 980, display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ fontWeight: 1000, opacity: 0.95 }}>Routine Settings</div>
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
               {!isClass ? (
                 <>
-                  <label style={{ display: "grid", gap: 4, fontWeight: 900, fontSize: 12, opacity: 0.9 }}>
-                    Start Time (HH:MM)
-                    <input value={String(routine.start_time || "")} onChange={(e) => setRoutineField("start_time", String(e.target.value || "").trim())} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.10)", color: "white", fontWeight: 900, width: 140 }} />
+                  <label style={{ display: "grid", gap: 4, fontWeight: 900, fontSize: 12, opacity: 0.9, maxWidth: 520 }}>
+                    Routine Name
+                    <input value={String(routine.name || "")} onChange={(e) => setRoutineField("name", String(e.target.value || ""))} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.10)", color: "white", fontWeight: 900, width: "100%" }} />
                   </label>
-                  <label style={{ display: "grid", gap: 4, fontWeight: 900, fontSize: 12, opacity: 0.9 }}>
-                    Duration (mins)
-                    <input value={String(routine.duration_mins ?? "")} onChange={(e) => setRoutineField("duration_mins", Number(e.target.value || 0) || 0)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.10)", color: "white", fontWeight: 900, width: 140 }} />
-                  </label>
+
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <label style={{ display: "grid", gap: 4, fontWeight: 900, fontSize: 12, opacity: 0.9 }}>
+                      Start Time (HH:MM)
+                      <input value={String(routine.start_time || "")} onChange={(e) => setRoutineField("start_time", String(e.target.value || "").trim())} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.10)", color: "white", fontWeight: 900, width: 140 }} />
+                    </label>
+
+                    <label style={{ display: "grid", gap: 4, fontWeight: 900, fontSize: 12, opacity: 0.9 }}>
+                      Duration (mins)
+                      <input value={String(routine.duration_mins ?? "")} onChange={(e) => setRoutineField("duration_mins", Number(e.target.value || 0) || 0)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.10)", color: "white", fontWeight: 900, width: 140 }} />
+                    </label>
+                  </div>
+
+                  <ColorPicker label="Routine Color (calendar)" value={String(routine.color || "#2E86FF")} onChange={(c) => setRoutineField("color", String(c || "").trim())} />
                 </>
               ) : (
                 <div style={{ fontWeight: 900, opacity: 0.9 }}>Class routine: tasks are classes with weekday + start/end.</div>
               )}
             </div>
           </div>
+        ) : null}
 
-          <button type="button" className="primaryBtn" onClick={completeAll} disabled={allDone} style={{ fontWeight: 1000, opacity: allDone ? 0.7 : 1 }}>
-            {allDone ? "All Done!" : "Complete all tasks"}
+        {/* Complete row under routine header lines */}
+        <div style={{ maxWidth: 980, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <button type="button" className="primaryBtn" onClick={completeAll} disabled={allDone} style={{ fontWeight: 1000, opacity: allDone ? 0.7 : 1, flex: 1 }}>
+            {allDone ? "All Done!" : "Complete All Tasks"}
           </button>
+
+          <button type="button" onClick={() => setShowSettings((v) => !v)} style={{ width: 46, height: 46, borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(0,0,0,0.12)", color: "rgba(255,255,255,0.95)", fontSize: 18, cursor: "pointer", flex: "0 0 auto" }} aria-label="Toggle settings" title="Routine settings">⚙️</button>
         </div>
 
         {/* Routine tasks (manage + reorder) */}
         <div style={{ display: "grid", gap: 10, maxWidth: 980 }}>
-          <div style={{ fontWeight: 1000, opacity: 0.95 }}>Routine Tasks</div>
+          <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ fontWeight: 1000, opacity: 0.95 }}>Routine Tasks</div>
+            {allDone ? (<div style={{ fontWeight: 900, opacity: 0.78, fontSize: 12 }}>All done for today.</div>) : null}
+          </div>
 
           <div className="routineTasksScroll" style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", maxHeight: "calc(100vh - var(--hubBarH) - 360px)", paddingRight: 2 }}>
             {itemsRaw.length === 0 ? (
@@ -275,15 +298,16 @@ export default function ManageRoutinePage({ routineId, onBack }) {
             ) : (
               itemsRaw.slice().sort((a, b) => (a.order - b.order)).map((t) => {
                 const isDoneToday = !!completionMap[String(t.id)];
+                if (isDoneToday) return null;
                 return (
                   <div
                     key={t.id}
-                    className={`routineTaskRow ${isDoneToday ? "routineTaskRowDone" : ""}`}
+                    className="routineTaskRow"
                     data-routine-task-row
                     data-taskid={String(t.id)}
                     onDragOver={(e) => { e.preventDefault(); }}
                     onDrop={(e) => { e.preventDefault(); const dragId = String(e.dataTransfer.getData("text/plain") || ""); const overId = String(t.id); if (dragId) commitReorder(dragId, overId); }}
-                    onClick={(e) => { if (isDoneToday) return; setEditTaskId(String(t.id)); }}
+                    onClick={(e) => { setEditTaskId(String(t.id)); }}
                   >
                     <div
                       className="routineTaskDots routineTaskDotsDrag"

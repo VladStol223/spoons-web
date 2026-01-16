@@ -144,15 +144,24 @@ function buildTasksByDate(dataObj) {
       const id = String(f?.id || "").trim();
       if (!id) continue;
       const k = `folder_${id}_tasks`;
-      if (Array.isArray(dataObj[k])) lists.push(dataObj[k]);
+      const folderColor = String(f?.color || "").trim();
+      if (Array.isArray(dataObj[k])) lists.push({ tasks: dataObj[k], folderColor });
     }
   } else {
-    lists.push(dataObj.folder_1_tasks, dataObj.folder_2_tasks, dataObj.folder_3_tasks, dataObj.folder_4_tasks, dataObj.folder_5_tasks, dataObj.folder_6_tasks);
+    lists.push({ tasks: dataObj.folder_1_tasks, folderColor: "" });
+    lists.push({ tasks: dataObj.folder_2_tasks, folderColor: "" });
+    lists.push({ tasks: dataObj.folder_3_tasks, folderColor: "" });
+    lists.push({ tasks: dataObj.folder_4_tasks, folderColor: "" });
+    lists.push({ tasks: dataObj.folder_5_tasks, folderColor: "" });
+    lists.push({ tasks: dataObj.folder_6_tasks, folderColor: "" });
   }
 
   for (const lst of lists) {
-    if (!Array.isArray(lst)) continue;
-    for (const t of lst) {
+    const arr = Array.isArray(lst?.tasks) ? lst.tasks : [];
+    const folderColor = String(lst?.folderColor || "").trim();
+
+    if (!Array.isArray(arr)) continue;
+    for (const t of arr) {
       if (!t || typeof t !== "object") continue;
       const dueRaw = t.due_date;
       if (!dueRaw || typeof dueRaw !== "string") continue;
@@ -166,7 +175,7 @@ function buildTasksByDate(dataObj) {
       const timeMins = parseTaskTimeMinutes(t);
       if (!map[ymd]) map[ymd] = [];
       const durationMins = parseTaskDurationMinutes(t);
-      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, durationMins, raw: t });
+      map[ymd].push({ id: String(t.id || `${ymd}:${name}`), name, isComplete, spoonsNeeded, done, timeMins, durationMins, raw: t, folderColor });
     }
   }
 
@@ -188,6 +197,22 @@ function buildTasksByDate(dataObj) {
 function monthsDiff(aMonthDate, bMonthDate) { return ((bMonthDate.getFullYear() - aMonthDate.getFullYear()) * 12) + (bMonthDate.getMonth() - aMonthDate.getMonth()); }
 function daysDiff(aDay, bDay) { const ms = startOfDay(bDay).getTime() - startOfDay(aDay).getTime(); return Math.round(ms / 86400000); }
 function clampMs(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+function normalizeHexColor(hex) {
+  const s = String(hex || "").trim();
+  if (!s) return "";
+  if (/^#[0-9a-fA-F]{3}$/.test(s)) { const r = s[1], g = s[2], b = s[3]; return `#${r}${r}${g}${g}${b}${b}`.toUpperCase(); }
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s.toUpperCase();
+  return "";
+}
+
+function pickTextColorForBg(hex) {
+  const h = normalizeHexColor(hex);
+  if (!h) return "";
+  const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 160 ? "#111" : "#FFF";
+}
 
 function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlocksByDate, onScheduleTask, onUnscheduleTask, onUpdateTaskTimeAndDuration }) {
   const gridRef = useRef(null);
@@ -499,7 +524,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
         const topPx = ((Number(t.timeMins || 0) / 60) * 64);
         const dur = Math.max(15, Math.min(24 * 60, Number(t.durationMins || 60)));
         const heightPx = ((dur / 60) * 64);
-        out.push({ key: `${isoYmd(d)}_${t.id}_${i}`, taskId: String(t.id), ymd: isoYmd(d), name: t.name, isComplete: t.isComplete, leftPct, widthPct, topPx, heightPx, startMins: Number(t.timeMins || 0), durationMins: dur });
+        out.push({ key: `${isoYmd(d)}_${t.id}_${i}`, taskId: String(t.id), ymd: isoYmd(d), name: t.name, isComplete: t.isComplete, leftPct, widthPct, topPx, heightPx, startMins: Number(t.timeMins || 0), durationMins: dur, folderColor: String(t.folderColor || "").trim() });
       }
 
       for (let j = 0; j < rTimed.length; j++) {
@@ -507,7 +532,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
         const topPx = ((Number(rt.timeMins || 0) / 60) * 64);
         const dur = Math.max(15, Math.min(24 * 60, Number(rt.durationMins || 60)));
         const heightPx = ((dur / 60) * 64);
-        out.push({ key: `${isoYmd(d)}_${rt.id}_r_${j}`, taskId: String(rt.id), ymd: isoYmd(d), name: rt.name, isComplete: false, leftPct, widthPct, topPx, heightPx, startMins: Number(rt.timeMins || 0), durationMins: dur, isRoutine: true });
+        out.push({ key: `${isoYmd(d)}_${rt.id}_r_${j}`, taskId: String(rt.id), ymd: isoYmd(d), name: rt.name, isComplete: false, leftPct, widthPct, topPx, heightPx, startMins: Number(rt.timeMins || 0), durationMins: dur, isRoutine: true, color: String(rt?.color || "").trim() });
       }
     }
     return out;
@@ -547,7 +572,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
                 onDropCapture={(e) => { e.preventDefault(); e.stopPropagation(); if (typeof onUnscheduleTask !== "function") return; const payload = readDragPayload(e.dataTransfer) || dragPayloadCache; const taskId = String(payload?.taskId || ""); if (!taskId) return; onUnscheduleTask(taskId, key); setDragPayloadCache(null); setDragGhost(null); }}
               >
                 {allDay.slice(0, 12).map((t, idx) => (
-                  <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
+                  <div key={`${key}_ad_${idx}`} className={`calAllDayTask ${t.isComplete ? "calAllDayTaskDone" : ""} ${selectedTask === `${key}:${t.id}` ? "calTaskSelected" : ""}`} title="Click to select. Drag the handle to schedule." style={(() => { const bg = normalizeHexColor(t.folderColor); const fg = pickTextColorForBg(bg); return bg ? { background: bg, color: fg } : undefined; })()} onClick={(e) => { e.stopPropagation(); setSelectedTask(`${key}:${t.id}`); }} onMouseEnter={() => setHoverTask(`${key}:${t.id}`)} onMouseLeave={() => setHoverTask((v) => (v === `${key}:${t.id}` ? null : v))}>
                     {(view === "day") ? (() => {
                       const rAll = routineForDay(d);
                       const { allDay: rAllDay } = splitAllDayAndTimedRoutines(rAll);
@@ -601,7 +626,7 @@ function TimeGridInner({ view, selectedDate, onPickDate, tasksByDate, routineBlo
 
               return (
                 <div key={b.key} className={`calTimedTaskWrap ${isSel ? "calTimedTaskWrapSelected" : ""}`} style={{ position: "absolute", left: `${b.leftPct}%`, width: `${b.widthPct}%`, top: `${b.topPx}px`, height: `${b.heightPx}px`, padding: "0px", boxSizing: "border-box", pointerEvents: "auto" }} onClick={(e) => { e.stopPropagation(); setSelectedTask(selKey); }} onMouseEnter={() => setHoverTask(selKey)} onMouseLeave={() => setHoverTask((v) => (v === selKey ? null : v))}>
-                  <div className={`calTimedTask ${b.isComplete ? "calTimedTaskDone" : ""} ${b.isRoutine ? "calTimedRoutine" : ""} ${isTiny ? "calTimedTaskTiny" : ""}`} style={{ height: "100%", padding: "6px 8px", boxSizing: "border-box" }}>
+                  <div className={`calTimedTask ${b.isComplete ? "calTimedTaskDone" : ""} ${b.isRoutine ? "calTimedRoutine" : ""} ${isTiny ? "calTimedTaskTiny" : ""}`} style={{ height: "100%", padding: "6px 8px", boxSizing: "border-box", ...(b.isRoutine && b.color ? { ["--routineColor"]: b.color } : {}), ...(!b.isRoutine ? (() => { const bg = normalizeHexColor(b.folderColor); const fg = pickTextColorForBg(bg); return bg ? { background: bg, color: fg } : {}; })() : {}) }}>
                     {showResizeHandles ? (<div className="calResizeHandle calResizeHandleTop" onPointerDown={(e) => beginResize(e, "top", b)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} title="Drag up to extend earlier">▲</div>) : null}
 
                     <div className="calTimedTaskRow">
@@ -659,14 +684,14 @@ export default function CalendarPage() {
           if (!name) continue;
           const tmins = parseHHMMToMins(it?.time);
           const dur = Math.max(15, Math.min(24 * 60, Number(it?.duration_mins ?? 60) || 60));
-          out[ymd].push({ id: `class:${rid}:${id}`, name: `Class: ${name}`, timeMins: tmins, durationMins: dur, kind: "class", raw: it, routineId: rid });
+          out[ymd].push({ id: `class:${rid}:${id}`, name: `Class: ${name}`, timeMins: tmins, durationMins: dur, kind: "class", raw: it, routineId: rid, color: String(r?.color || "").trim() });
         }
       } else {
         const name = String(r?.name || "").trim();
         if (!name) continue;
         const tmins = parseHHMMToMins(r?.start_time);
         const dur = Math.max(15, Math.min(24 * 60, Number(r?.duration_mins ?? 60) || 60));
-        out[ymd].push({ id: `routine:${rid}`, name: ` ${name}`, timeMins: tmins, durationMins: dur, kind: "routine", raw: r, routineId: rid });
+        out[ymd].push({ id: `routine:${rid}`, name: ` ${name}`, timeMins: tmins, durationMins: dur, kind: "routine", raw: r, routineId: rid, color: String(r?.color || "").trim() });
       }
     }
     out[ymd].sort((a, b) => {
@@ -1026,7 +1051,11 @@ export default function CalendarPage() {
                 <div className="calCellNum">{d.getDate()}</div>
                 {lines.length ? (
                   <div className="calCellTasks">
-                    {lines.map((t, idx) => (<div key={`${ymd}_l_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name}>{t.name}</div>))}
+                  {lines.map((t, idx) => {
+                    const bg = normalizeHexColor(t.folderColor);
+                    const fg = pickTextColorForBg(bg);
+                    return (<div key={`${ymd}_l_${idx}`} className={`calCellTaskLine ${t.isComplete ? "calCellTaskDone" : ""}`} title={t.name} style={bg ? { background: bg, color: fg } : undefined}>{t.name}</div>);
+                  })}
                   </div>
                 ) : null}
               </button>

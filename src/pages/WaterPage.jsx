@@ -86,7 +86,10 @@ export default function WaterPage() {
   const [dataObj, setDataObj] = React.useState(() => ensureWaterShape(loadCachedData()));
   const goalOz = Number(dataObj?.water?.daily_goal_oz) || 80;
 
+  const maxDailyOz = Math.max(goalOz * 3, 200);
+
   const [todayKey, setTodayKey] = React.useState(() => nowYmd());
+
   React.useEffect(() => {
     const t = setInterval(() => {
       const k = nowYmd();
@@ -115,8 +118,8 @@ export default function WaterPage() {
 
     const y = ("touches" in e && e.touches?.[0]) ? e.touches[0].clientY : e.clientY;
 
-    // Remaining capacity for today (can't pour more than what's left to reach goal)
-    const remaining = clamp(goalOz - todayTotalOz, 0, goalOz);
+    // Allow going beyond goal; cap at a reasonable daily maximum
+    const remaining = clamp(maxDailyOz - todayTotalOz, 0, maxDailyOz);
 
     dragRef.current.active = true;
     dragRef.current.y0 = y;
@@ -140,7 +143,7 @@ export default function WaterPage() {
     const r = el.getBoundingClientRect();
     const dy = dragRef.current.y0 - yNow;
 
-    const remaining = Number.isFinite(Number(dragRef.current.remaining)) ? Number(dragRef.current.remaining) : clamp(goalOz - todayTotalOz, 0, goalOz);
+    const remaining = Number.isFinite(Number(dragRef.current.remaining)) ? Number(dragRef.current.remaining) : clamp(maxDailyOz - todayTotalOz, 0, maxDailyOz);
 
     // Scale drag to remaining capacity, not full goal
     const ozPerPx = remaining / Math.max(180, r.height);
@@ -168,7 +171,7 @@ export default function WaterPage() {
   }
 
   function onDrank() {
-    const remaining = clamp(goalOz - todayTotalOz, 0, goalOz);
+    const remaining = clamp(maxDailyOz - todayTotalOz, 0, maxDailyOz);
     const add = clamp(Math.max(0, Math.floor(Number(pendingOz) || 0)), 0, remaining);
     if (add <= 0) return;
 
@@ -183,6 +186,14 @@ export default function WaterPage() {
 
   const progress = clamp((todayTotalOz / Math.max(1, goalOz)) * 100, 0, 150);
   const fillPct = clamp(((todayTotalOz + pendingOz) / Math.max(1, goalOz)) * 100, 0, 120);
+
+  const shownTotal = todayTotalOz + pendingOz;
+  const overflowOz = Math.max(0, shownTotal - goalOz);
+  const overflowRatio = overflowOz / Math.max(1, goalOz);
+  const dripStrength = clamp(overflowRatio, 0, 2); // 0..2
+  const dripCount = clamp(Math.floor(dripStrength * 10), 0, 20);
+
+  function rand01(i) { const x = Math.sin((i + 1) * 999.123) * 10000; return x - Math.floor(x); }
 
   const goalMet = todayTotalOz >= goalOz;
   const headerLine = goalMet ? "Nice. You hit your goal." : "Drag up to pour. Tap drank to commit.";
@@ -209,6 +220,18 @@ export default function WaterPage() {
           title="Drag up to fill"
         >
           <WaterCupSvg fillPct={fillPct} pendingOz={pendingOz} goalLinePct={clamp(progress, 0, 100)} active={isDragging} />
+
+          <div className={`waterDrips ${dripCount > 0 ? "on" : ""}`} style={{ ["--drip"]: String(dripStrength), ["--dripCount"]: String(dripCount) }}>
+            {Array.from({ length: dripCount }).map((_, i) => {
+              const side = (i % 2 === 0) ? "L" : "R";
+              const edgeJitter = rand01(i) * 10; // 0..10
+              const leftPct = side === "L" ? (2 + edgeJitter) : (88 + edgeJitter);
+              const dur = 0.85 + (1 - Math.min(1, dripStrength)) * 0.45 + rand01(i + 7) * 0.25;
+              const delay = -(rand01(i + 33) * 1.2);
+              const size = 6 + rand01(i + 101) * (10 + dripStrength * 8);
+              return <span key={i} className="waterDrop" style={{ left: `${leftPct}%`, ["--dur"]: `${dur}s`, ["--delay"]: `${delay}s`, ["--sz"]: `${size}px` }} />;
+            })}
+          </div>
         </div>
 
         <button className="primaryBtn" onClick={onDrank} disabled={pendingOz <= 0} style={{ width: 240, height: 54, borderRadius: 16, fontWeight: 1000, fontSize: 16, opacity: pendingOz <= 0 ? 0.6 : 1 }}>

@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import ThemeToggleButton from "../theme/ThemeToggleButton";
+import ColorPicker from "../components/ColorPicker";
 import { loadCachedData, saveCachedData } from "../copypartySync";
 
 function ensureFoldersData(obj) {
@@ -16,9 +17,9 @@ function ensureFoldersData(obj) {
       String(o.folder_six || "Folder Six"),
     ].map((s) => String(s || "").trim() || "Folder");
 
-    o.folders = names.map((name, idx) => ({ id: `f${idx + 1}`, name }));
+    o.folders = names.map((name, idx) => ({ id: `f${idx + 1}`, name, color: "" }));
   } else {
-    o.folders = o.folders.map((f, idx) => ({ id: String(f?.id || `f${idx + 1}`), name: String(f?.name || `Folder ${idx + 1}`) }));
+    o.folders = o.folders.map((f, idx) => ({ id: String(f?.id || `f${idx + 1}`), name: String(f?.name || `Folder ${idx + 1}`), color: String(f?.color || "").trim() }));
   }
 
   for (const f of o.folders) {
@@ -56,6 +57,12 @@ export default function SettingsPage() {
     return m;
   });
 
+  const [folderColorDrafts, setFolderColorDrafts] = React.useState(() => {
+    const m = {};
+    for (const f of folders) m[f.id] = String(f?.color || "").trim();
+    return m;
+  });
+
   const [waterGoalDraft, setWaterGoalDraft] = React.useState(() => String(Number(dataObj?.water?.daily_goal_oz) || 80));
 
   React.useEffect(() => {
@@ -63,6 +70,17 @@ export default function SettingsPage() {
       const next = { ...prev };
       for (const f of folders) {
         if (!(f.id in next)) next[f.id] = String(f?.name || "");
+      }
+      for (const k of Object.keys(next)) {
+        if (!folders.some((f) => f.id === k)) delete next[k];
+      }
+      return next;
+    });
+
+    setFolderColorDrafts((prev) => {
+      const next = { ...prev };
+      for (const f of folders) {
+        if (!(f.id in next)) next[f.id] = String(f?.color || "").trim();
       }
       for (const k of Object.keys(next)) {
         if (!folders.some((f) => f.id === k)) delete next[k];
@@ -82,6 +100,9 @@ export default function SettingsPage() {
   ]), []);
 
   const [activeTab, setActiveTab] = React.useState("account");
+  const [openColorFor, setOpenColorFor] = React.useState("");
+
+  React.useEffect(() => { if (activeTab !== "folders") setOpenColorFor(""); }, [activeTab]);
   const railRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -107,11 +128,15 @@ export default function SettingsPage() {
     persist({ ...dataObj, folders: folders.map((f) => (f.id === folderId ? { ...f, name: String(nextName || "") } : f)) });
   }
 
+  function setFolderColor(folderId, nextColor) {
+    persist({ ...dataObj, folders: folders.map((f) => (f.id === folderId ? { ...f, color: String(nextColor || "").trim() } : f)) });
+  }
+
   function addFolder() {
     const nextIdx = folders.length + 1;
     const id = `f${Date.now()}_${Math.random().toString(16).slice(2)}`;
     const name = `Folder ${nextIdx}`;
-    const next = { ...dataObj, folders: [...folders, { id, name }], [`folder_${id}_tasks`]: [] };
+    const next = { ...dataObj, folders: [...folders, { id, name, color: "" }], [`folder_${id}_tasks`]: [] };
     persist(next);
   }
 
@@ -175,29 +200,69 @@ export default function SettingsPage() {
           <>
             <div style={{ marginTop: 2, fontWeight: 900, fontSize: 16 }}>Folders</div>
             <div style={{ display: "grid", gap: 10 }}>
-              {folders.map((f, i) => (
-                <div key={f.id} style={{ display: "grid", gridTemplateColumns: "140px 1fr 44px", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontWeight: 900, opacity: 0.9 }}>{`Folder ${i + 1}:`}</div>
-                  <input
-                    value={String(folderDrafts?.[f.id] ?? "")}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setFolderDrafts((prev) => ({ ...prev, [f.id]: v }));
+            {folders.map((f, i) => {
+              const curColor = String((folderColorDrafts?.[f.id] ?? String(f?.color || "").trim()) || "#303C1F");
+              const isOpen = openColorFor === String(f.id);
+              return (
+                <div key={f.id} style={{ display: "grid", gridTemplateColumns: "140px 34px 1fr 44px", gap: 10, alignItems: "start" }}>
+                  <div style={{ fontWeight: 900, opacity: 0.9, paddingTop: 10 }}>{`Folder ${i + 1}:`}</div>
+
+                  <button
+                    type="button"
+                    onClick={() => setOpenColorFor((v) => (v === String(f.id) ? "" : String(f.id)))}
+                    aria-label="Pick folder color"
+                    title="Pick folder color"
+                    style={{
+                      width: 34,
+                      height: 34,
+                      marginTop: 6,
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.22)",
+                      background: curColor,
+                      boxShadow: "inset 0 0 0 2px rgba(0,0,0,0.22)",
+                      cursor: "pointer",
                     }}
-                    onBlur={() => {
-                      const raw = String(folderDrafts?.[f.id] ?? "");
-                      const trimmed = raw.trim();
-                      const finalName = trimmed === "" ? `Folder ${i + 1}` : raw;
-                      if (finalName !== String(f.name || "")) renameFolder(f.id, finalName);
-                      if (trimmed === "") setFolderDrafts((prev) => ({ ...prev, [f.id]: `Folder ${i + 1}` }));
-                    }}
-                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    placeholder={`Folder ${i + 1}`}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }}
                   />
-                  <button type="button" onClick={() => removeFolder(f.id)} title="Remove folder" style={{ width: 44, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,80,80,0.14)", fontWeight: 900 }}>−</button>
+
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <input
+                      value={String(folderDrafts?.[f.id] ?? "")}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFolderDrafts((prev) => ({ ...prev, [f.id]: v }));
+                      }}
+                      onBlur={() => {
+                        const raw = String(folderDrafts?.[f.id] ?? "");
+                        const trimmed = raw.trim();
+                        const finalName = trimmed === "" ? `Folder ${i + 1}` : raw;
+                        if (finalName !== String(f.name || "")) renameFolder(f.id, finalName);
+                        if (trimmed === "") setFolderDrafts((prev) => ({ ...prev, [f.id]: `Folder ${i + 1}` }));
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      placeholder={`Folder ${i + 1}`}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }}
+                    />
+
+                    {isOpen ? (
+                      <div style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.10)" }}>
+                        <ColorPicker
+                          label="Folder Color"
+                          value={curColor}
+                          onChange={(c) => {
+                            const next = String(c || "").trim();
+                            setFolderColorDrafts((prev) => ({ ...prev, [f.id]: next }));
+                            setFolderColor(f.id, next);
+                          }}
+                          presets={["#303C1F", "#2E86FF","#00C2A8","#27AE60","#F2C94C","#F2994A","#EB5757","#9B51E0","#56CCF2","#D7B45A","#FFFFFF"]}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <button type="button" onClick={() => removeFolder(f.id)} title="Remove folder" style={{ width: 44, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,80,80,0.14)", fontWeight: 900, marginTop: 6 }}>−</button>
                 </div>
-              ))}
+              );
+            })}
               <button type="button" onClick={addFolder} style={{ marginTop: 6, width: 56, height: 44, borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.10)", fontWeight: 900, fontSize: 20 }} aria-label="Add folder" title="Add folder">+</button>
             </div>
           </>
