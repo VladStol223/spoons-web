@@ -1,17 +1,25 @@
 // src/components/TopBar.jsx
 import React from "react";
+import { loadCachedData } from "../copypartySync";
 
 export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
   const canSet = typeof onSetSpoons === "function";
   const canOpen = typeof onOpenSpoons === "function";
 
-  const s = Math.max(0, Math.floor(Number(spoons) || 0));
+  let debtOn = false;
+  try { debtOn = Boolean(loadCachedData()?.spoons_debt_toggle); } catch {}
+
+  const sRaw = Math.floor(Number(spoons) || 0);
+  const s = debtOn ? sRaw : Math.max(0, sRaw);
   const [editText, setEditText] = React.useState(String(s));
   React.useEffect(() => { setEditText(String(s)); }, [s]);
 
   function commitEdit() {
     if (!canSet) return;
-    const n = Math.max(0, Math.floor(Number(String(editText).replace(/[^\d]/g, "")) || 0));
+    const txt = String(editText || "").trim();
+    const n0 = Number(txt === "-" || txt === "" ? "0" : txt);
+    const n1 = Math.floor(Number.isFinite(n0) ? n0 : 0);
+    const n = debtOn ? n1 : Math.max(0, n1);
     setEditText(String(n));
     onSetSpoons(n);
   }
@@ -20,27 +28,14 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
     return (
       <span aria-hidden="true" style={{ position: "relative", display: "inline-flex", width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: 20, lineHeight: "20px" }}>🥄</span>
-        <span style={{
-          position: "absolute",
-          right: -2,
-          top: -2,
-          width: 16,
-          height: 16,
-          borderRadius: 999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 12,
-          fontWeight: 900,
-          border: "1px solid rgba(255,255,255,0.25)",
-          background: "rgba(0,0,0,0.35)"
-        }}>+</span>
+        <span style={{ position: "absolute", right: -2, top: -2, width: 16, height: 16, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.35)" }}>+</span>
       </span>
     );
   }
 
   const totalSlots = 20;
-  const filled = Math.min(s, totalSlots);
+  const pos = Math.max(0, s);
+  const filled = Math.min(pos, totalSlots);
   const row1Count = Math.min(filled, 10);
   const row2Count = Math.max(0, filled - 10);
 
@@ -73,31 +68,16 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
     <header className="topBar" style={{ padding: "12px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", gridColumn: "1 / -1" }}>
         <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          <span aria-hidden="true" title={syncTitle} style={{ position: "absolute", top: -10, left: 0, fontSize: 12, lineHeight: "12px", opacity: 0.85, pointerEvents: "none" }}>
-            {syncEmoji}
-          </span>
+          <span aria-hidden="true" title={syncTitle} style={{ position: "absolute", top: -10, left: 0, fontSize: 12, lineHeight: "12px", opacity: 0.85, pointerEvents: "none" }}>{syncEmoji}</span>
 
           <input
             value={editText}
-            onChange={(e) => setEditText(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => { const v = String(e.target.value || ""); if (/^-?\d*$/.test(v)) setEditText(v); }}
             onBlur={commitEdit}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitEdit(); } }}
             inputMode="numeric"
             aria-label="Spoons count"
-            style={{
-              width: 28,
-              padding: 0,
-              margin: 0,
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              color: "inherit",
-              font: "inherit",
-              fontWeight: 900,
-              fontSize: 22,
-              textAlign: "left",
-              cursor: canSet ? "text" : "default"
-            }}
+            style={{ width: 42, padding: 0, margin: 0, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", fontWeight: 900, fontSize: 22, textAlign: "left", cursor: canSet ? "text" : "default" }}
           />
 
           <div className="spoonsIcons" aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: 1, width: "100%" }}>
@@ -106,22 +86,7 @@ export default function TopBar({ spoons, onSetSpoons, onOpenSpoons }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => { if (canOpen) onOpenSpoons(); }}
-          title="Open spoons"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.10)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flex: "0 0 auto"
-          }}
-        >
+        <button type="button" onClick={() => { if (canOpen) onOpenSpoons(); }} title="Open spoons" style={{ width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.10)", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
           <SpoonPlusIcon />
         </button>
       </div>

@@ -2,14 +2,27 @@ import React from "react";
 import { loadCachedData, saveCachedData } from "../copypartySync";
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-function nowYmd() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0"); return `${d.getFullYear()}-${mm}-${dd}`; }
+function startOfToday(d) { const n = d || new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function isoKey(d) { const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0"); return `${d.getFullYear()}-${mm}-${dd}`; }
+function nowYmd() { return isoKey(new Date()); }
 
 function ensureWaterShape(obj) {
   const o = (obj && typeof obj === "object") ? { ...obj } : {};
   if (!o.water || typeof o.water !== "object") o.water = {};
   if (!o.water.log || typeof o.water.log !== "object") o.water.log = {};
+  if (!o.water.goal_by_day || typeof o.water.goal_by_day !== "object") o.water.goal_by_day = {};
   if (!Number.isFinite(Number(o.water.daily_goal_oz))) o.water.daily_goal_oz = 80;
   return o;
+}
+
+function WaterDropIcon({ fillPct, goalMet }) {
+  const pct = clamp(Number(fillPct) || 0, 0, 100);
+  return (
+    <span className={`waterDayDot ${goalMet ? "isGoal" : ""}`} style={{ "--fillPct": `${pct}%` }}>
+      <span className="waterDayDrop" aria-hidden="true">💧</span>
+      <span className="waterDayFill" aria-hidden="true" />
+    </span>
+  );
 }
 
 function WaterCupSvg({ fillPct, pendingOz, goalLinePct, active }) {
@@ -86,9 +99,10 @@ export default function WaterPage() {
   const [dataObj, setDataObj] = React.useState(() => ensureWaterShape(loadCachedData()));
   const goalOz = Number(dataObj?.water?.daily_goal_oz) || 80;
 
-  const maxDailyOz = Math.max(goalOz * 3, 200);
-
   const [todayKey, setTodayKey] = React.useState(() => nowYmd());
+
+  const todayGoalOz = goalOz;
+  const maxDailyOz = Math.max(todayGoalOz * 3, 200);
 
   React.useEffect(() => {
     const t = setInterval(() => {
@@ -99,9 +113,17 @@ export default function WaterPage() {
   }, []);
   const todayTotalOz = Number(dataObj?.water?.log?.[todayKey]) || 0;
 
+  React.useEffect(() => {
+    const cur = ensureWaterShape(dataObj);
+    const next = ensureWaterShape({ ...cur });
+    next.water.goal_by_day = { ...(next.water.goal_by_day || {}) };
+    next.water.goal_by_day[todayKey] = goalOz;
+    persist(next);
+  }, [todayKey, goalOz]);
 
   const cupRef = React.useRef(null);
   const dragRef = React.useRef({ active: false, y0: 0, startOz: 0, pending: 0, remaining: 0 });
+  const daysBarRef = React.useRef(null);
 
   const [pendingOz, setPendingOz] = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -184,26 +206,33 @@ export default function WaterPage() {
     setPendingOz(0);
   }
 
-  const progress = clamp((todayTotalOz / Math.max(1, goalOz)) * 100, 0, 150);
-  const fillPct = clamp(((todayTotalOz + pendingOz) / Math.max(1, goalOz)) * 100, 0, 120);
+  const progress = clamp((todayTotalOz / Math.max(1, todayGoalOz)) * 100, 0, 150);
+  const fillPct = clamp(((todayTotalOz + pendingOz) / Math.max(1, todayGoalOz)) * 100, 0, 120);
 
   const shownTotal = todayTotalOz + pendingOz;
-  const overflowOz = Math.max(0, shownTotal - goalOz);
-  const overflowRatio = overflowOz / Math.max(1, goalOz);
+  const overflowOz = Math.max(0, shownTotal - todayGoalOz);
+  const overflowRatio = overflowOz / Math.max(1, todayGoalOz);
   const dripStrength = clamp(overflowRatio, 0, 2); // 0..2
   const dripCount = clamp(Math.floor(dripStrength * 10), 0, 20);
 
   function rand01(i) { const x = Math.sin((i + 1) * 999.123) * 10000; return x - Math.floor(x); }
 
-  const goalMet = todayTotalOz >= goalOz;
+  const goalMet = todayTotalOz >= todayGoalOz;
   const headerLine = goalMet ? "Nice. You hit your goal." : "Drag up to pour. Tap drank to commit.";
+
+  React.useEffect(() => {
+    const el = daysBarRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [todayKey, dataObj]);
+
 
   return (
     <div className="pageWrap">
       <div style={{ display: "grid", gap: 14, justifyItems: "center", textAlign: "center" }}>
         <div style={{ fontWeight: 900, opacity: 0.95 }}>{headerLine}</div>
         <div style={{ fontWeight: 900, opacity: 0.9 }}>
-          Today: {todayTotalOz} oz / {goalOz} oz {goalMet ? "✅" : "💧"}
+          Today: {todayTotalOz} oz / {todayGoalOz} oz {goalMet ? "✅" : "💧"}
         </div>
 
         <div
@@ -237,6 +266,33 @@ export default function WaterPage() {
         <button className="primaryBtn" onClick={onDrank} disabled={pendingOz <= 0} style={{ width: 240, height: 54, borderRadius: 16, fontWeight: 1000, fontSize: 16, opacity: pendingOz <= 0 ? 0.6 : 1 }}>
           Drank {pendingOz > 0 ? `${pendingOz} oz` : ""}
         </button>
+
+        <div className="waterDaysBarWrap" aria-label="Daily water history">
+          <div className="waterDaysBar" ref={daysBarRef}>
+            {(() => {
+              const daysBack = 18;
+              const base = startOfToday(new Date());
+              const out = [];
+              for (let i = daysBack; i >= 0; i--) {
+                const d = new Date(base);
+                d.setDate(d.getDate() - i);
+                const key = isoKey(d);
+                const oz = Number(dataObj?.water?.log?.[key]) || 0;
+                const dayGoalOz = (key === todayKey) ? goalOz : (Number(dataObj?.water?.goal_by_day?.[key]) || 80);
+                const pct = clamp((oz / Math.max(1, dayGoalOz)) * 100, 0, 100);
+                const goalMetDay = oz >= dayGoalOz;
+                const isToday = key === todayKey;
+                out.push(
+                  <div key={key} className={`waterDayItem ${isToday ? "isToday" : ""}`} title={`${key}: ${oz} oz / ${dayGoalOz} oz`}>
+                    <WaterDropIcon fillPct={pct} goalMet={goalMetDay} />
+                    <div className="waterDayLabel">{key.slice(5)}</div>
+                  </div>
+                );
+              }
+              return out;
+            })()}
+          </div>
+        </div>
       </div>
     </div>
   );

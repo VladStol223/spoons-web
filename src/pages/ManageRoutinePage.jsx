@@ -15,9 +15,6 @@ function ensureRoutinesData(obj) {
   if (!o.routine_items || typeof o.routine_items !== "object") o.routine_items = {};
   if (!o.routine_completions || typeof o.routine_completions !== "object") o.routine_completions = {};
   if (!Array.isArray(o.classes)) o.classes = [];
-  if (!Array.isArray(o.routine_items.morning)) o.routine_items.morning = [];
-  if (!Array.isArray(o.routine_items.evening)) o.routine_items.evening = [];
-  if (!Array.isArray(o.routine_items.class)) o.routine_items.class = [];
   return o;
 }
 
@@ -172,6 +169,31 @@ export default function ManageRoutinePage({ routineId, onBack }) {
     saveData(d0);
   }
 
+  function deleteRoutine() {
+    const r = (Array.isArray(dataObj?.routines) ? dataObj.routines : []).find((x) => String(x?.id) === String(routineId));
+    const ok = window.confirm(`Delete this routine permanently?\n\n${String(r?.name || "Routine")}\n\nThis will delete its tasks and completion history.`);
+    if (!ok) return;
+
+    const d0 = ensureRoutinesData(loadCachedData());
+
+    // remove from routines list
+    d0.routines = (Array.isArray(d0.routines) ? d0.routines : []).filter((x) => String(x?.id) !== String(routineId));
+
+    // remove items list for this routine
+    if (d0.routine_items && typeof d0.routine_items === "object") { try { delete d0.routine_items[routineId]; } catch {} }
+
+    // remove completion history for this routine across all days
+    if (d0.routine_completions && typeof d0.routine_completions === "object") {
+      for (const dayKey of Object.keys(d0.routine_completions)) {
+        const dayObj = d0.routine_completions[dayKey];
+        if (dayObj && typeof dayObj === "object") { try { delete dayObj[routineId]; } catch {} }
+      }
+    }
+
+    saveData(d0);
+    onBack();
+  }
+
   function completeItem(itemId) {
     const d0 = ensureRoutinesData(loadCachedData());
     if (!d0.routine_completions[ymd]) d0.routine_completions[ymd] = {};
@@ -267,7 +289,11 @@ export default function ManageRoutinePage({ routineId, onBack }) {
                     </label>
                   </div>
 
-                  <ColorPicker label="Routine Color (calendar)" value={String(routine.color || "#2E86FF")} onChange={(c) => setRoutineField("color", String(c || "").trim())} />
+                  <ColorPicker label="Routine Color (calendar)" value={String(routine.color || "#303C1F")} onChange={(c) => setRoutineField("color", String(c || "").trim())} />
+
+                  <button type="button" onClick={deleteRoutine} style={{ marginTop: 10, padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,80,80,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 950, cursor: "pointer", width: "fit-content" }}>
+                    Delete Routine
+                  </button>
                 </>
               ) : (
                 <div style={{ fontWeight: 900, opacity: 0.9 }}>Class routine: tasks are classes with weekday + start/end.</div>

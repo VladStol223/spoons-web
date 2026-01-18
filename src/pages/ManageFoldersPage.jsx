@@ -40,15 +40,6 @@ function ensureRoutinesData(obj) {
   if (!o.routine_completions || typeof o.routine_completions !== "object") o.routine_completions = {};
   if (!Array.isArray(o.classes)) o.classes = [];
 
-  const has = (id) => o.routines.some((r) => String(r?.id) === String(id));
-  if (!has("morning")) o.routines.unshift({ id: "morning", name: "Morning Routine", type: "morning", start_time: "08:00", duration_mins: 60 });
-  if (!has("evening")) o.routines.push({ id: "evening", name: "Evening Routine", type: "evening", start_time: "21:30", duration_mins: 45 });
-  if (!has("class")) o.routines.push({ id: "class", name: "Class Routine", type: "class" });
-
-  if (!Array.isArray(o.routine_items.morning)) o.routine_items.morning = [];
-  if (!Array.isArray(o.routine_items.evening)) o.routine_items.evening = [];
-  if (!Array.isArray(o.routine_items.class)) o.routine_items.class = [];
-
   return o;
 }
 
@@ -113,7 +104,7 @@ export default function ManageFoldersPage() {
 
       const due = startOfDay(new Date(dueRaw + "T00:00:00"));
       if (Number.isNaN(due.getTime())) continue;
-      if (due < today || due > end) continue;
+      if (due > end) continue;
 
       any += 1;
 
@@ -147,7 +138,7 @@ export default function ManageFoldersPage() {
     <div className="pageWrap">
       <div style={{ display: "grid", gap: 14, width: "100%" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-          <div style={{ fontWeight: 1000, fontSize: 20 }}>Manage Folders</div>
+          <div style={{ fontWeight: 1000, fontSize: 20 }}>Manage Routines + Folders</div>
         </div>
 
         {/* Routines row (horizontal scroll) */}
