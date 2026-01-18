@@ -83,6 +83,8 @@ export default function SettingsPage() {
   const [restDrafts, setRestDrafts] = React.useState(() => ({ short: String(Math.floor(Number(dataObj?.rest_spoons?.short) || 1)), half: String(Math.floor(Number(dataObj?.rest_spoons?.half) || 2)), full: String(Math.floor(Number(dataObj?.rest_spoons?.full) || 3)) }));
   const [tpsDraft, setTpsDraft] = React.useState(() => String(Math.max(1, Math.floor(Number(dataObj?.time_per_spoon) || 10))));
 
+  const [showDaysInfo, setShowDaysInfo] = React.useState(false);
+
   React.useEffect(() => {
     setFolderDrafts((prev) => {
       const next = { ...prev };
@@ -286,27 +288,42 @@ export default function SettingsPage() {
           <>
             <div style={{ marginTop: 2, fontWeight: 900, fontSize: 16 }}>Folders</div>
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 900, opacity: 0.8 }}>Summary days ahead (per folder)</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, opacity: 0.9 }}>
+              <div>Days</div>
+              <button
+                type="button"
+                onClick={() => setShowDaysInfo((v) => !v)}
+                aria-label="Days info"
+                title="Info"
+                style={{ width: 22, height: 22, borderRadius: 999, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(0,0,0,0.14)", color: "rgba(255,255,255,0.92)", fontWeight: 1000, cursor: "pointer", display: "grid", placeItems: "center", padding: 0, lineHeight: 1 }}
+              >
+                i
+              </button>
+              {showDaysInfo ? (
+                <div style={{ marginLeft: 6, padding: "6px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.18)", fontWeight: 800, fontSize: 12, opacity: 0.95 }}>
+                  Summary days ahead (per folder)
+                </div>
+              ) : null}
+            </div>
               {folders.map((f, i) => {
                 const curColor = String((folderColorDrafts?.[f.id] ?? String(f?.color || "").trim()) || "#303C1F");
                 const isOpen = openColorFor === String(f.id);
                 return (
-                  <div key={f.id} style={{ display: "grid", gridTemplateColumns: "140px 34px 90px 1fr 44px", gap: 10, alignItems: "start" }}>
-                    <div style={{ fontWeight: 900, opacity: 0.9, paddingTop: 10 }}>{`Folder ${i + 1}:`}</div>
+                  <div key={f.id} style={{ display: "grid", gridTemplateColumns: "auto 34px 68px 1fr 44px", gap: 10, alignItems: "start" }}>
+                    <div style={{ fontWeight: 900, opacity: 0.9, paddingTop: 10, whiteSpace: "nowrap" }}>{`Folder ${i + 1}:`}</div>
 
                     <button type="button" onClick={() => setOpenColorFor((v) => (v === String(f.id) ? "" : String(f.id)))} aria-label="Pick folder color" title="Pick folder color" style={{ width: 34, height: 34, marginTop: 6, borderRadius: 10, border: "1px solid rgba(255,255,255,0.22)", background: curColor, boxShadow: "inset 0 0 0 2px rgba(0,0,0,0.22)", cursor: "pointer" }} />
 
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div style={{ fontWeight: 900, opacity: 0.9, paddingTop: 2 }}>Days</div>
-                      <input
-                        value={String(folderDaysDrafts?.[f.id] ?? "")}
-                        inputMode="numeric"
-                        onChange={(e) => { const digits = String(e.target.value || "").replace(/[^\d]/g, ""); setFolderDaysDrafts((p) => ({ ...p, [f.id]: digits })); }}
-                        onBlur={() => { const digits = String(folderDaysDrafts?.[f.id] ?? "").replace(/[^\d]/g, ""); const n = digits === "" ? 7 : Math.max(0, Math.floor(Number(digits) || 0)); setFolderDaysDrafts((p) => ({ ...p, [f.id]: String(n) })); setFolderDaysAhead(f.id, n); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                        style={{ width: "100%", padding: "10px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800 }}
-                      />
-                    </div>
+                  <div style={{ display: "grid", gap: 6, paddingTop: 6 }}>
+                    <input
+                      value={String(folderDaysDrafts?.[f.id] ?? "")}
+                      inputMode="numeric"
+                      onChange={(e) => { const digits = String(e.target.value || "").replace(/[^\d]/g, ""); setFolderDaysDrafts((p) => ({ ...p, [f.id]: digits })); }}
+                      onBlur={() => { const digits = String(folderDaysDrafts?.[f.id] ?? "").replace(/[^\d]/g, ""); const n = digits === "" ? 7 : Math.max(0, Math.floor(Number(digits) || 0)); setFolderDaysDrafts((p) => ({ ...p, [f.id]: String(n) })); setFolderDaysAhead(f.id, n); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      style={{ width: 56, padding: "10px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", fontWeight: 800, textAlign: "center" }}
+                    />
+                  </div>
 
                     <div style={{ display: "grid", gap: 10 }}>
                       <input
